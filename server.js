@@ -114,6 +114,16 @@ app.post('/api/auth/registrar', (req, res) => {
   const { nome, email, senha } = req.body;
   if (!nome || !email || !senha) return err(res, 'Nome, email e senha obrigatorios');
   if (senha.length < 6) return err(res, 'Senha precisa de ao menos 6 caracteres');
+
+  const totalUsuarios = db.prepare('SELECT COUNT(*) as n FROM usuarios').get().n;
+  if (totalUsuarios > 0) {
+    // já existe pelo menos uma conta: só quem está logado pode cadastrar gente nova
+    const token = req.cookies.sessao;
+    const sess = token && db.prepare('SELECT * FROM sessoes WHERE token=?').get(token);
+    const logado = sess && new Date(sess.expira_em) >= new Date();
+    if (!logado) return err(res, 'Cadastro fechado. Peça para quem já tem acesso te cadastrar.', 403);
+  }
+
   const existe = db.prepare('SELECT id FROM usuarios WHERE email=?').get(email.toLowerCase());
   if (existe) return err(res, 'Email ja cadastrado');
   const hash = bcrypt.hashSync(senha, 10);
