@@ -216,6 +216,7 @@ tr:hover td{background:#222}
       <div class="nav-item" onclick="showPage('socios',this)"><span class="icon">🤝</span> Sócios</div>
       <div class="nav-item" onclick="showPage('acerto',this)"><span class="icon">💰</span> Acerto</div>
       <div class="nav-section" id="nav-user-section" style="margin-top:auto"></div>
+      <div class="nav-item" onclick="openModalNovoUsuario()"><span class="icon">➕</span> Cadastrar usuário</div>
       <div class="nav-item" onclick="doLogout()"><span class="icon">🚪</span> Sair</div>
     </nav>
   </aside>
@@ -1369,6 +1370,32 @@ async function renderAlertas(){
   if(!alertas.length){ el.innerHTML='<p style="color:#888">Nenhum carro com material parado há 15+ dias. 🎉</p>'; return; }
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Gravado em</th><th>Dias parado</th><th>Status</th></tr></thead>
     <tbody>${alertas.map(a=>`<tr><td>${a.nome}</td><td>${a.data_gravacao}</td><td class="dias-danger">🔴 ${a.dias}d</td><td>${a.status}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+// ═══ CADASTRAR USUÁRIO (só logado) ═════════════════════════════
+function openModalNovoUsuario(){
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <input id="nu-nome" type="text" placeholder="Nome">
+      <input id="nu-email" type="email" placeholder="Email">
+      <input id="nu-senha" type="password" placeholder="Senha (mín. 6 caracteres)">
+      <div id="nu-erro" style="color:#ff6b6b;font-size:12px;min-height:14px"></div>
+      <button class="btn btn-primary" onclick="salvarNovoUsuario()">Cadastrar</button>
+    </div>`;
+  abrirModalGenerico('Cadastrar usuário', html);
+}
+async function salvarNovoUsuario(){
+  const nome=document.getElementById('nu-nome').value.trim();
+  const email=document.getElementById('nu-email').value.trim();
+  const senha=document.getElementById('nu-senha').value;
+  const erroEl=document.getElementById('nu-erro');
+  erroEl.textContent='';
+  if(!nome||!email||!senha){erroEl.textContent='Preencha todos os campos.';return;}
+  try{
+    await POST('/auth/registrar',{nome,email,senha});
+    closeModal('modal-generico');
+    alert('Usuário cadastrado. Ele já pode fazer login com o email e senha informados.');
+  }catch(e){erroEl.textContent=e.message;}
 }
 
 // ═══ INIT ═════════════════════════════════════════════════════
