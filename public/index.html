@@ -370,8 +370,21 @@ tr:hover td{background:#222}
         <div class="form-group full"><label>Modelo *</label><input type="text" id="v-nome" placeholder="Ex: Honda Civic 2020"></div>
         <div class="form-group"><label>Placa</label><input type="text" id="v-placa" placeholder="ABC-1234"></div>
         <div class="form-group"><label>Ano</label><input type="number" id="v-ano" placeholder="2020"></div>
-        <div class="form-group"><label>Data da Compra</label><input type="date" id="v-data-compra"></div>
-        <div class="form-group"><label>Valor de Compra (R$) *</label><input type="number" id="v-valor-compra" placeholder="0" oninput="updateResumo()"></div>
+        <div class="form-group full"><label>Tipo de Aquisição</label>
+          <select id="v-tipo-aquisicao" onchange="toggleAquisicao()">
+            <option value="compra">Compra — o carro é seu</option>
+            <option value="consignacao">Consignação — carro de terceiro, você só vende</option>
+          </select>
+        </div>
+        <div id="v-compra-fields" style="display:contents">
+          <div class="form-group"><label>Data da Compra</label><input type="date" id="v-data-compra"></div>
+          <div class="form-group"><label>Valor de Compra (R$) *</label><input type="number" id="v-valor-compra" placeholder="0" oninput="updateResumo()"></div>
+        </div>
+        <div id="v-consig-fields" style="display:none">
+          <div class="form-group"><label>Nome do Consignante (dono do carro) *</label><input type="text" id="v-consignante-nome" placeholder="Ex: João Silva"></div>
+          <div class="form-group"><label>Contato do Consignante</label><input type="text" id="v-consignante-contato" placeholder="WhatsApp/telefone"></div>
+          <div class="form-group full"><label>Valor Mínimo Combinado com o Dono (R$) *</label><input type="number" id="v-valor-minimo-dono" placeholder="0" oninput="updateResumo()"></div>
+        </div>
         <hr class="sec-div"><div class="sec-lbl">🤝 Parceria</div>
         <div class="form-group">
           <label>Tem Sócio?</label>
@@ -574,9 +587,16 @@ const totalC=vid=>custosDe(vid).reduce((s,c)=>s+Number(c.valor),0);
 const socio=id=>S.find(s=>s.id==id);
 
 function calc(v){
-  const ct=totalC(v.id), inv=Number(v.valor_compra)+ct;
+  const ct=totalC(v.id);
+  if(v.tipo_aquisicao==='consignacao'){
+    const rec=Number(v.valor_venda)||0;
+    const comissaoBruta=rec-Number(v.valor_minimo_dono||0);
+    const luc=comissaoBruta-ct;
+    return{ct,inv:0,rec,luc,mg:rec>0?(luc/rec)*100:0,consignado:true};
+  }
+  const inv=Number(v.valor_compra)+ct;
   const rec=Number(v.valor_venda), luc=rec-inv;
-  return{ct,inv,rec,luc,mg:rec>0?(luc/rec)*100:0};
+  return{ct,inv,rec,luc,mg:rec>0?(luc/rec)*100:0,consignado:false};
 }
 function meuLucro(v){
   const l=calc(v).luc;
@@ -668,11 +688,11 @@ function renderDash(){
     <div class="kpi-card"><div class="kpi-label">Minha Margem</div><div class="kpi-value">${P(mg)}</div><div class="kpi-sub">${filtrando?'no período':'nas vendas'}</div></div>`;
   const ativos=V.filter(v=>v.status!=='Vendido');
   document.getElementById('dash-estoque').innerHTML=ativos.length?ativos.map(v=>{
-    const{inv}=calc(v), s=v.tem_socio==='sim'?socio(v.socio_id):null, d=dias(v);
-    return`<tr><td><strong style="color:#fff">${v.nome}</strong>${s?`<br><span class="tag-s">🤝 ${s.nome}</span>`:''}</td>
+    const{inv,consignado}=calc(v), s=v.tem_socio==='sim'?socio(v.socio_id):null, d=dias(v);
+    return`<tr><td><strong style="color:#fff">${v.nome}</strong>${consignado?`<br><span class="tag-s" style="background:#2a2210;color:#FFCC01">📋 Consignado</span>`:''}${s?`<br><span class="tag-s">🤝 ${s.nome}</span>`:''}</td>
       <td style="color:#666;font-size:11px">${v.ano||'—'}</td>
-      <td class="money">${R(v.valor_compra)}</td><td class="money orange">${R(totalC(v.id))}</td>
-      <td class="money">${R(inv)}</td><td>${diasHtml(d)}</td>
+      <td class="money">${consignado?'<span style="color:#444">—</span>':R(v.valor_compra)}</td><td class="money orange">${R(totalC(v.id))}</td>
+      <td class="money">${consignado?'<span style="color:#444">—</span>':R(inv)}</td><td>${diasHtml(d)}</td>
       <td><span class="badge badge-${v.status==='Disponivel'?'disponivel':'negociacao'}">${v.status}</span></td></tr>`;
   }).join(''):`<tr><td colspan="7" style="text-align:center;color:#555;padding:20px">Estoque vazio</td></tr>`;
   document.getElementById('dash-vendas-title').textContent=filtrando?`✅ Vendas — ${labelP()}`:'✅ Todas as Vendas';
@@ -695,14 +715,14 @@ function renderVeiculos(){
   if(f) list=list.filter(v=>v.status===f);
   if(q) list=list.filter(v=>v.nome.toLowerCase().includes(q)||(v.placa||'').toLowerCase().includes(q)||(String(v.ano||'')).includes(q));
   document.getElementById('veiculos-table').innerHTML=list.length?list.map(v=>{
-    const{ct,inv,luc,mg}=calc(v), vend=v.status==='Vendido', d=dias(v);
+    const{ct,inv,luc,mg,consignado}=calc(v), vend=v.status==='Vendido', d=dias(v);
     const lc=luc>0?'green':luc<0?'red':'', s=v.tem_socio==='sim'?socio(v.socio_id):null;
     return`<tr>
-      <td><strong style="color:#fff">${v.nome}</strong>${s?`<br><span class="tag-s">🤝 ${s.nome}</span>`:''}</td>
+      <td><strong style="color:#fff">${v.nome}</strong>${consignado?`<br><span class="tag-s" style="background:#2a2210;color:#FFCC01">📋 Consignado — ${v.consignante_nome||''}</span>`:''}${s?`<br><span class="tag-s">🤝 ${s.nome}</span>`:''}</td>
       <td style="color:#666;font-size:11px">${v.ano||'—'}</td>
-      <td class="money">${R(v.valor_compra)}</td>
+      <td class="money">${consignado?'<span style="color:#444">—</span>':R(v.valor_compra)}</td>
       <td class="money orange">${R(ct)}</td>
-      <td class="money">${R(inv)}</td>
+      <td class="money">${consignado?'<span style="color:#444">—</span>':R(inv)}</td>
       <td>${vend?'<span style="color:#444">—</span>':diasHtml(d)}</td>
       <td class="money">${vend?R(v.valor_venda):'—'}</td>
       <td class="money ${lc}">${vend?R(luc):'—'}</td>
@@ -733,9 +753,21 @@ function addCusto(){mCustos.push({descricao:'',valor:0,conta_id:CT[0]?CT[0].id:n
 function updateResumo(){
   const ct=mCustos.reduce((s,c)=>s+Number(c.valor||0),0);
   document.getElementById('custo-total').textContent=R(ct);
-  const vc=parseFloat(document.getElementById('v-valor-compra').value)||0;
+  const consig=document.getElementById('v-tipo-aquisicao').value==='consignacao';
   const vv=parseFloat(document.getElementById('v-valor-venda').value)||0;
   const el=document.getElementById('v-resumo');
+  if(consig){
+    const vmin=parseFloat(document.getElementById('v-valor-minimo-dono').value)||0;
+    if(vmin>0&&vv>0){
+      const comissao=vv-vmin, luc=comissao-ct, mg=vv>0?(luc/vv)*100:0, ok=luc>=0;
+      el.style.display='';
+      document.getElementById('v-resumo-inner').innerHTML=`
+        <div class="resume-row"><span style="color:#666">Comissão bruta</span><span>${R(comissao)}</span></div>
+        <div class="resume-row"><span style="color:${ok?'#FFCC01':'#ff6b6b'}">${ok?'💰 Sua margem':'⚠️ Prejuízo'}</span><span style="color:${ok?'#FFCC01':'#ff6b6b'}">${R(luc)} (${P(mg)})</span></div>`;
+    } else el.style.display='none';
+    return;
+  }
+  const vc=parseFloat(document.getElementById('v-valor-compra').value)||0;
   if(vc>0&&vv>0){
     const inv=vc+ct, luc=vv-inv, mg=vv>0?(luc/vv)*100:0, ok=luc>=0;
     el.style.display='';
@@ -750,11 +782,12 @@ function openModalVeiculo(id){
   editVid=id||null;
   document.getElementById('mv-title').textContent=id?'✏️ Editar Veículo':'+ Novo Veículo';
   document.getElementById('v-socio-id').innerHTML='<option value="">-- Selecione --</option>'+S.map(s=>`<option value="${s.id}">${s.nome}</option>`).join('');
-  ['v-nome','v-placa','v-ano','v-data-compra','v-valor-compra','v-socio-pct','v-data-venda','v-valor-venda','v-troca','v-obs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['v-nome','v-placa','v-ano','v-data-compra','v-valor-compra','v-socio-pct','v-data-venda','v-valor-venda','v-troca','v-obs','v-consignante-nome','v-consignante-contato','v-valor-minimo-dono'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('v-tem-socio').value='nao';
   document.getElementById('v-status').value='Disponivel';
+  document.getElementById('v-tipo-aquisicao').value='compra';
   document.getElementById('v-resumo').style.display='none';
-  toggleSocio(); mCustos=[];
+  toggleSocio(); toggleAquisicao(); mCustos=[];
   if(id){
     const v=V.find(x=>x.id==id); if(!v) return;
     document.getElementById('v-nome').value=v.nome;
@@ -762,6 +795,10 @@ function openModalVeiculo(id){
     document.getElementById('v-ano').value=v.ano||'';
     document.getElementById('v-data-compra').value=v.data_compra||'';
     document.getElementById('v-valor-compra').value=v.valor_compra;
+    document.getElementById('v-tipo-aquisicao').value=v.tipo_aquisicao||'compra';
+    document.getElementById('v-consignante-nome').value=v.consignante_nome||'';
+    document.getElementById('v-consignante-contato').value=v.consignante_contato||'';
+    document.getElementById('v-valor-minimo-dono').value=v.valor_minimo_dono||'';
     document.getElementById('v-tem-socio').value=v.tem_socio||'nao';
     document.getElementById('v-socio-id').value=v.socio_id||'';
     document.getElementById('v-socio-pct').value=v.socio_pct||'';
@@ -770,7 +807,7 @@ function openModalVeiculo(id){
     document.getElementById('v-valor-venda').value=v.valor_venda||'';
     document.getElementById('v-troca').value=v.troca||'';
     document.getElementById('v-obs').value=v.obs||'';
-    toggleSocio();
+    toggleSocio(); toggleAquisicao();
     mCustos=custosDe(id).map(c=>({descricao:c.descricao,valor:c.valor,conta_id:c.conta_id}));
   }
   renderCustos();
@@ -781,17 +818,32 @@ function toggleSocio(){
   document.getElementById('v-sg').style.display=sim?'':'none';
   document.getElementById('v-pg').style.display=sim?'':'none';
 }
+function toggleAquisicao(){
+  const consig=document.getElementById('v-tipo-aquisicao').value==='consignacao';
+  document.getElementById('v-compra-fields').style.display=consig?'none':'contents';
+  document.getElementById('v-consig-fields').style.display=consig?'contents':'none';
+  updateResumo();
+}
 function autoFillPct(){
   const s=socio(parseInt(document.getElementById('v-socio-id').value));
   if(s&&!document.getElementById('v-socio-pct').value) document.getElementById('v-socio-pct').value=s.pct_padrao||'';
 }
 async function saveVeiculo(){
   const nome=document.getElementById('v-nome').value.trim();
+  const tipoAq=document.getElementById('v-tipo-aquisicao').value;
+  const consig=tipoAq==='consignacao';
   const vc=parseFloat(document.getElementById('v-valor-compra').value);
-  if(!nome||!vc){alert('Preencha nome e valor de compra.');return;}
+  const consignanteNome=document.getElementById('v-consignante-nome').value.trim();
+  const valorMinimo=parseFloat(document.getElementById('v-valor-minimo-dono').value);
+  if(!nome){alert('Preencha o modelo.');return;}
+  if(!consig&&!vc){alert('Preencha o valor de compra.');return;}
+  if(consig&&(!consignanteNome||!valorMinimo)){alert('Preencha o nome do consignante e o valor mínimo combinado.');return;}
   const ts=document.getElementById('v-tem-socio').value;
   const body={nome, placa:document.getElementById('v-placa').value, ano:document.getElementById('v-ano').value,
-    data_compra:document.getElementById('v-data-compra').value, valor_compra:vc, tem_socio:ts,
+    data_compra:document.getElementById('v-data-compra').value, valor_compra:consig?0:vc, tem_socio:ts,
+    tipo_aquisicao:tipoAq, consignante_nome:consig?consignanteNome:null,
+    consignante_contato:consig?document.getElementById('v-consignante-contato').value.trim():null,
+    valor_minimo_dono:consig?valorMinimo:null,
     socio_id:ts==='sim'?parseInt(document.getElementById('v-socio-id').value)||null:null,
     socio_pct:parseFloat(document.getElementById('v-socio-pct').value)||0,
     status:document.getElementById('v-status').value, data_venda:document.getElementById('v-data-venda').value,
@@ -1228,17 +1280,18 @@ function exportarExcel(){
   const wb=XLSX.utils.book_new();
 
   // ── ABA 1: Veículos (resumo financeiro por carro) ──
-  const rows=[['Veículo','Ano','Placa','Valor Compra','Custos','Total Investido','Valor Venda','Lucro Bruto','Meu Lucro','Margem %','Dias Estoque','Status','Sócio','% Sócio','Data Compra','Data Venda','Obs']];
+  const rows=[['Veículo','Ano','Placa','Tipo','Consignante','Valor Compra / Mínimo Dono','Custos','Total Investido','Valor Venda','Lucro Bruto','Meu Lucro','Margem %','Dias Estoque','Status','Sócio','% Sócio','Data Compra','Data Venda','Obs']];
   V.forEach(v=>{
-    const{ct,inv,luc,mg}=calc(v), ml=meuLucro(v), ts=v.tem_socio==='sim'&&v.socio_pct>0;
+    const{ct,inv,luc,mg,consignado}=calc(v), ml=meuLucro(v), ts=v.tem_socio==='sim'&&v.socio_pct>0;
     const s=ts?socio(v.socio_id):null, d=dias(v);
-    rows.push([v.nome,v.ano||'',v.placa||'',v.valor_compra,ct,inv,
+    rows.push([v.nome,v.ano||'',v.placa||'',consignado?'Consignação':'Compra',consignado?(v.consignante_nome||''):'',
+      consignado?v.valor_minimo_dono:v.valor_compra,ct,consignado?'':inv,
       v.status==='Vendido'?v.valor_venda:'',v.status==='Vendido'?luc:'',v.status==='Vendido'?ml:'',
       v.status==='Vendido'?parseFloat(mg.toFixed(1)):'',d!==null?d:'',
       v.status,s?s.nome:'Próprio',ts?v.socio_pct:0,v.data_compra||'',v.data_venda||'',v.obs||'']);
   });
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[22,6,10,14,12,14,14,14,14,10,10,12,12,8,12,12,24].map(w=>({wch:w}));
+  ws['!cols']=[22,6,10,12,18,16,12,14,14,14,14,10,10,12,12,8,12,12,24].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'Veículos');
 
   // ── ABA 2: Lançamentos (todo entrada/saída — com ou sem carro) ──
