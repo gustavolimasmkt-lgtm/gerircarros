@@ -60,6 +60,10 @@ db.exec(`
     data_gravacao TEXT,
     fipe_valor REAL,
     fipe_atualizado_em TEXT,
+    tipo_aquisicao TEXT DEFAULT 'compra',
+    consignante_nome TEXT,
+    consignante_contato TEXT,
+    valor_minimo_dono REAL,
     criado_em TEXT DEFAULT (datetime('now'))
   );
 
@@ -89,6 +93,16 @@ db.exec(`
 `);
 
 // seed das 2 contas fixas se ainda nao existirem
+// migração leve: adiciona colunas de consignação se o banco já existia sem elas
+for (const col of [
+  "ALTER TABLE veiculos ADD COLUMN tipo_aquisicao TEXT DEFAULT 'compra'",
+  "ALTER TABLE veiculos ADD COLUMN consignante_nome TEXT",
+  "ALTER TABLE veiculos ADD COLUMN consignante_contato TEXT",
+  "ALTER TABLE veiculos ADD COLUMN valor_minimo_dono REAL",
+]) {
+  try { db.exec(col); } catch (e) { /* coluna já existe, ignora */ }
+}
+
 const contaCount = db.prepare('SELECT COUNT(*) as n FROM contas').get().n;
 if (contaCount === 0) {
   db.prepare("INSERT INTO contas (nome, tipo) VALUES ('PJ', 'pj')").run();
@@ -225,26 +239,37 @@ app.get('/api/veiculos', (_, res) => {
 
 app.post('/api/veiculos', (req, res) => {
   const b = req.body;
-  if (!b.nome || !b.valor_compra) return err(res, 'Nome e valor de compra obrigatorios');
+  const consig = b.tipo_aquisicao === 'consignacao';
+  if (!b.nome) return err(res, 'Nome obrigatorio');
+  if (!consig && !b.valor_compra) return err(res, 'Valor de compra obrigatorio');
+  if (consig && !b.consignante_nome) return err(res, 'Nome do consignante obrigatorio');
+  if (consig && !b.valor_minimo_dono) return err(res, 'Valor minimo combinado com o dono obrigatorio');
   const r = db.prepare(`INSERT INTO veiculos
-    (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', b.valor_compra, b.tem_socio||'nao',
+    (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao,tipo_aquisicao,consignante_nome,consignante_contato,valor_minimo_dono)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', consig ? 0 : b.valor_compra, b.tem_socio||'nao',
          b.socio_id||null, b.socio_pct ?? 50, b.status||'Disponivel', b.data_venda||'', b.valor_venda||0,
          b.troca||0, b.obs||'', b.data_entrada || new Date().toISOString().slice(0,10),
-         b.material_pronto ? 1 : 0, b.data_gravacao||null);
+         b.material_pronto ? 1 : 0, b.data_gravacao||null, b.tipo_aquisicao||'compra',
+         b.consignante_nome||null, b.consignante_contato||null, consig ? b.valor_minimo_dono : null);
   ok(res, db.prepare('SELECT * FROM veiculos WHERE id=?').get(r.lastInsertRowid));
 });
 
 app.put('/api/veiculos/:id', (req, res) => {
   const b = req.body;
-  if (!b.nome || !b.valor_compra) return err(res, 'Nome e valor de compra obrigatorios');
+  const consig = b.tipo_aquisicao === 'consignacao';
+  if (!b.nome) return err(res, 'Nome obrigatorio');
+  if (!consig && !b.valor_compra) return err(res, 'Valor de compra obrigatorio');
+  if (consig && !b.consignante_nome) return err(res, 'Nome do consignante obrigatorio');
+  if (consig && !b.valor_minimo_dono) return err(res, 'Valor minimo combinado com o dono obrigatorio');
   db.prepare(`UPDATE veiculos SET nome=?,placa=?,ano=?,data_compra=?,valor_compra=?,tem_socio=?,socio_id=?,socio_pct=?,
-    status=?,data_venda=?,valor_venda=?,troca=?,obs=?,data_entrada=?,material_pronto=?,data_gravacao=? WHERE id=?`)
-    .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', b.valor_compra, b.tem_socio||'nao',
+    status=?,data_venda=?,valor_venda=?,troca=?,obs=?,data_entrada=?,material_pronto=?,data_gravacao=?,
+    tipo_aquisicao=?,consignante_nome=?,consignante_contato=?,valor_minimo_dono=? WHERE id=?`)
+    .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', consig ? 0 : b.valor_compra, b.tem_socio||'nao',
          b.socio_id||null, b.socio_pct ?? 50, b.status||'Disponivel', b.data_venda||'', b.valor_venda||0,
          b.troca||0, b.obs||'', b.data_entrada||null, b.material_pronto ? 1 : 0, b.data_gravacao||null,
-         req.params.id);
+         b.tipo_aquisicao||'compra', b.consignante_nome||null, b.consignante_contato||null,
+         consig ? b.valor_minimo_dono : null, req.params.id);
   ok(res, db.prepare('SELECT * FROM veiculos WHERE id=?').get(req.params.id));
 });
 
