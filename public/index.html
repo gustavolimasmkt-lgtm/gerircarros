@@ -209,8 +209,7 @@ tr:hover td{background:#222}
       <div class="nav-item" onclick="showPage('veiculos',this)"><span class="icon">🚘</span> Veículos</div>
       <div class="nav-item" onclick="showPage('simulador',this)"><span class="icon">🧮</span> Simulador</div>
       <div class="nav-item" onclick="showPage('relatorio',this)"><span class="icon">📈</span> Relatório</div>
-      <div class="nav-section">Financeiro</div>
-      <div class="nav-item" onclick="showPage('contas',this)"><span class="icon">🏦</span> Contas / Extrato</div>
+      <div class="nav-section">Operação</div>
       <div class="nav-item" onclick="showPage('alertas',this)"><span class="icon">⏰</span> Alertas</div>
       <div class="nav-section">Pessoas</div>
       <div class="nav-item" onclick="showPage('socios',this)"><span class="icon">🤝</span> Sócios</div>
@@ -329,15 +328,6 @@ tr:hover td{background:#222}
       <div class="content" id="acerto-content"></div>
     </div>
 
-    <!-- CONTAS / EXTRATO -->
-    <div id="page-contas" class="page">
-      <div class="header">
-        <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Contas / Extrato</h2><div class="header-sub">Entradas e saídas por conta</div></div></div>
-        <button class="btn btn-primary btn-sm" onclick="openModalLancamento()">+ Novo Lançamento</button>
-      </div>
-      <div class="content" id="contas-content"></div>
-    </div>
-
     <!-- ALERTAS -->
     <div id="page-alertas" class="page">
       <div class="header"><div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Alertas</h2><div class="header-sub">Carros com material parado há 15+ dias</div></div></div></div>
@@ -422,9 +412,29 @@ tr:hover td{background:#222}
         <div class="form-group"><label>Data da Venda</label><input type="date" id="v-data-venda"></div>
         <div class="form-group"><label>Preço Alvo / Venda (R$)</label><input type="number" id="v-valor-venda" placeholder="0" oninput="updateResumo()"></div>
         <div class="form-group"><label>Carro Troca (R$)</label><input type="number" id="v-troca" placeholder="0"></div>
+        <hr class="sec-div"><div class="sec-lbl">📊 FIPE</div>
+        <div id="v-fipe-aviso" class="form-group full" style="display:none;color:#888;font-size:12px">Salve o carro primeiro pra buscar o valor FIPE.</div>
+        <div id="v-fipe-section" class="form-group full" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end">
+            <div><label style="font-size:11px;color:#888">Marca</label><select id="fp-marca" onchange="fipeCarregarModelos()"><option value="">Carregando...</option></select></div>
+            <div><label style="font-size:11px;color:#888">Modelo</label><select id="fp-modelo" onchange="fipeCarregarAnos()"><option value="">—</option></select></div>
+            <div><label style="font-size:11px;color:#888">Ano</label><select id="fp-ano"><option value="">—</option></select></div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="fipeBuscarValor()">Buscar</button>
+          </div>
+          <div id="fp-resultado" style="margin-top:8px;font-size:13px;color:#888"></div>
+        </div>
+        <hr class="sec-div"><div class="sec-lbl">📷 Fotos</div>
+        <div id="v-fotos-aviso" class="form-group full" style="display:none;color:#888;font-size:12px">Salve o carro primeiro pra adicionar fotos.</div>
+        <div id="v-fotos-section" class="form-group full" style="display:none">
+          <input type="file" id="v-fotos-input" accept="image/*" multiple onchange="uploadFotos()" style="margin-bottom:10px">
+          <div id="v-fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px"></div>
+        </div>
         <div class="form-group full"><label>Observações</label><textarea id="v-obs" rows="2" placeholder="Notas..."></textarea></div>
         <div id="v-resumo" class="form-group full" style="display:none">
           <div class="resume-box" id="v-resumo-inner"></div>
+        </div>
+        <div id="v-historico-link" class="form-group full" style="display:none">
+          <span style="color:#666;font-size:12px;cursor:pointer;text-decoration:underline" onclick="verHistoricoVeiculo()">Ver histórico de alterações</span>
         </div>
       </div>
     </div>
@@ -554,7 +564,7 @@ tr:hover td{background:#222}
 
 <script>
 // ═══ STATE ═══════════════════════════════════════════════════
-let V=[], C=[], S=[], CT=[], L=[], user=null;
+let V=[], C=[], S=[], user=null;
 let editVid=null, editSid=null, vendaVid=null, simMode='proposta';
 let mCustos=[], importRows=[];
 
@@ -570,14 +580,7 @@ const GET=p=>req('GET',p);
 const POST=(p,b)=>req('POST',p,b);
 const PUT=(p,b)=>req('PUT',p,b);
 const DEL=p=>req('DELETE',p);
-async function loadAll(){
-  [V,L,S,CT]=await Promise.all([GET('/veiculos'),GET('/lancamentos'),GET('/socios'),GET('/contas')]);
-  // compatibilidade: C imita o antigo array de custos, derivado dos lançamentos vinculados a veículo
-  C=L.filter(l=>l.veiculo_id!=null && l.tipo==='saida').map(l=>({
-    id:l.id, veiculo_id:l.veiculo_id, descricao:l.descricao, valor:l.valor,
-    conta_id:l.conta_id, conta_nome:l.conta_nome, data:l.data
-  }));
-}
+async function loadAll(){ [V,C,S]=await Promise.all([GET('/veiculos'),GET('/custos'),GET('/socios')]); }
 
 // ═══ HELPERS ═════════════════════════════════════════════════
 const R=n=>n==null?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
@@ -628,7 +631,7 @@ async function showPage(p,el){
   document.getElementById('page-'+p).classList.add('active');
   if(el) el.classList.add('active');
   await loadAll();
-  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,contas:renderContas,alertas:renderAlertas};
+  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas};
   if(map[p]) map[p]();
 }
 
@@ -718,7 +721,7 @@ function renderVeiculos(){
     const{ct,inv,luc,mg,consignado}=calc(v), vend=v.status==='Vendido', d=dias(v);
     const lc=luc>0?'green':luc<0?'red':'', s=v.tem_socio==='sim'?socio(v.socio_id):null;
     return`<tr>
-      <td><strong style="color:#fff">${v.nome}</strong>${consignado?`<br><span class="tag-s" style="background:#2a2210;color:#FFCC01">📋 Consignado — ${v.consignante_nome||''}</span>`:''}${s?`<br><span class="tag-s">🤝 ${s.nome}</span>`:''}</td>
+      <td><strong style="color:#fff">${v.nome}</strong>${consignado?`<br><span class="tag-s" style="background:#2a2210;color:#FFCC01">📋 Consignado — ${v.consignante_nome||''}</span>`:''}${s?`<br><span class="tag-s">🤝 ${s.nome}</span>`:''}${v.fipe_valor?`<br><span class="tag-s" style="background:#1a2a1a;color:#3ecf6e">📊 FIPE ${R(v.fipe_valor)}</span>`:''}</td>
       <td style="color:#666;font-size:11px">${v.ano||'—'}</td>
       <td class="money">${consignado?'<span style="color:#444">—</span>':R(v.valor_compra)}</td>
       <td class="money orange">${R(ct)}</td>
@@ -742,14 +745,16 @@ function renderCustos(){
     <div class="custo-row">
       <input type="text" value="${c.descricao}" placeholder="Ex: Polimento" oninput="mCustos[${i}].descricao=this.value;updateResumo()">
       <input type="number" value="${c.valor||''}" placeholder="0" oninput="mCustos[${i}].valor=parseFloat(this.value)||0;updateResumo()">
-      <select onchange="mCustos[${i}].conta_id=parseInt(this.value)">
-        ${CT.map(ct=>`<option value="${ct.id}" ${c.conta_id==ct.id?'selected':''}>${ct.nome}</option>`).join('')}
+      <select onchange="mCustos[${i}].pago_por=this.value">
+        <option value="eu" ${c.pago_por==='eu'?'selected':''}>Eu</option>
+        <option value="socio" ${c.pago_por==='socio'?'selected':''}>Sócio</option>
+        <option value="dividido" ${c.pago_por==='dividido'?'selected':''}>Dividido</option>
       </select>
       <button class="del-custo" onclick="mCustos.splice(${i},1);renderCustos()">×</button>
     </div>`).join('');
   updateResumo();
 }
-function addCusto(){mCustos.push({descricao:'',valor:0,conta_id:CT[0]?CT[0].id:null});renderCustos();setTimeout(()=>{const x=document.querySelectorAll('#custos-list input[type=text]');if(x.length)x[x.length-1].focus();},50);}
+function addCusto(){mCustos.push({descricao:'',valor:0,pago_por:'eu'});renderCustos();setTimeout(()=>{const x=document.querySelectorAll('#custos-list input[type=text]');if(x.length)x[x.length-1].focus();},50);}
 function updateResumo(){
   const ct=mCustos.reduce((s,c)=>s+Number(c.valor||0),0);
   document.getElementById('custo-total').textContent=R(ct);
@@ -808,7 +813,21 @@ function openModalVeiculo(id){
     document.getElementById('v-troca').value=v.troca||'';
     document.getElementById('v-obs').value=v.obs||'';
     toggleSocio(); toggleAquisicao();
-    mCustos=custosDe(id).map(c=>({descricao:c.descricao,valor:c.valor,conta_id:c.conta_id}));
+    mCustos=custosDe(id).map(c=>({descricao:c.descricao,valor:c.valor,pago_por:c.pago_por}));
+    document.getElementById('v-fipe-aviso').style.display='none';
+    document.getElementById('v-fipe-section').style.display='';
+    document.getElementById('v-fotos-aviso').style.display='none';
+    document.getElementById('v-fotos-section').style.display='';
+    document.getElementById('v-historico-link').style.display='';
+    document.getElementById('fp-resultado').innerHTML=v.fipe_valor?`Última consulta: <strong style="color:#FFCC01">${R(v.fipe_valor)}</strong> em ${new Date(v.fipe_atualizado_em).toLocaleDateString('pt-BR')}`:'';
+    fipeCarregarMarcas();
+    carregarFotosGrid(id);
+  }else{
+    document.getElementById('v-fipe-aviso').style.display='';
+    document.getElementById('v-fipe-section').style.display='none';
+    document.getElementById('v-fotos-aviso').style.display='';
+    document.getElementById('v-fotos-section').style.display='none';
+    document.getElementById('v-historico-link').style.display='none';
   }
   renderCustos();
   document.getElementById('modal-veiculo').style.display='flex';
@@ -823,6 +842,95 @@ function toggleAquisicao(){
   document.getElementById('v-compra-fields').style.display=consig?'none':'contents';
   document.getElementById('v-consig-fields').style.display=consig?'contents':'none';
   updateResumo();
+}
+
+// ═══ FIPE ═══════════════════════════════════════════════════
+let fipeMarcasCache=null;
+async function fipeCarregarMarcas(){
+  const sel=document.getElementById('fp-marca');
+  try{
+    if(!fipeMarcasCache) fipeMarcasCache=await GET('/fipe/marcas');
+    sel.innerHTML='<option value="">Selecione</option>'+fipeMarcasCache.map(m=>`<option value="${m.code}">${m.name}</option>`).join('');
+  }catch(e){ sel.innerHTML='<option value="">Indisponível</option>'; }
+}
+async function fipeCarregarModelos(){
+  const marca=document.getElementById('fp-marca').value;
+  const selM=document.getElementById('fp-modelo'), selA=document.getElementById('fp-ano');
+  selM.innerHTML='<option value="">Carregando...</option>'; selA.innerHTML='<option value="">—</option>';
+  if(!marca){ selM.innerHTML='<option value="">—</option>'; return; }
+  try{
+    const r=await GET('/fipe/modelos/'+marca);
+    selM.innerHTML='<option value="">Selecione</option>'+r.models.map(m=>`<option value="${m.code}">${m.name}</option>`).join('');
+  }catch(e){ selM.innerHTML='<option value="">Indisponível</option>'; }
+}
+async function fipeCarregarAnos(){
+  const marca=document.getElementById('fp-marca').value, modelo=document.getElementById('fp-modelo').value;
+  const selA=document.getElementById('fp-ano');
+  selA.innerHTML='<option value="">Carregando...</option>';
+  if(!modelo){ selA.innerHTML='<option value="">—</option>'; return; }
+  try{
+    const r=await GET(`/fipe/anos/${marca}/${modelo}`);
+    selA.innerHTML='<option value="">Selecione</option>'+r.map(a=>`<option value="${a.code}">${a.name}</option>`).join('');
+  }catch(e){ selA.innerHTML='<option value="">Indisponível</option>'; }
+}
+async function fipeBuscarValor(){
+  const marca=document.getElementById('fp-marca').value, modelo=document.getElementById('fp-modelo').value, ano=document.getElementById('fp-ano').value;
+  if(!marca||!modelo||!ano){alert('Selecione marca, modelo e ano.');return;}
+  const el=document.getElementById('fp-resultado');
+  el.textContent='Buscando...';
+  try{
+    const r=await GET(`/fipe/valor/${marca}/${modelo}/${ano}`);
+    const valorNum=parseFloat(r.price.replace(/[^\d,]/g,'').replace(',','.'));
+    await PUT(`/veiculos/${editVid}/fipe`,{fipe_valor:valorNum});
+    el.innerHTML=`<strong style="color:#FFCC01">${r.price}</strong> — ${r.model} (${r.modelYear}) · ref. ${r.referenceMonth}`;
+    await loadAll();
+  }catch(e){ el.textContent='Erro: '+e.message; }
+}
+
+// ═══ FOTOS ═══════════════════════════════════════════════════
+async function carregarFotosGrid(vid){
+  const grid=document.getElementById('v-fotos-grid');
+  grid.innerHTML='Carregando...';
+  try{
+    const fotos=await GET(`/veiculos/${vid}/fotos`);
+    grid.innerHTML=fotos.map(f=>`
+      <div style="position:relative">
+        <img src="/uploads/${f.arquivo}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;border:1px solid #2a2a2a">
+        <button onclick="delFoto(${f.id},${vid})" style="position:absolute;top:2px;right:2px;background:#000c;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px">×</button>
+      </div>`).join('')||'<span style="color:#555;font-size:12px">Nenhuma foto ainda.</span>';
+  }catch(e){ grid.innerHTML='<span style="color:#ff6b6b;font-size:12px">Erro ao carregar fotos.</span>'; }
+}
+async function uploadFotos(){
+  const input=document.getElementById('v-fotos-input');
+  if(!input.files.length||!editVid) return;
+  const fd=new FormData();
+  for(const f of input.files) fd.append('fotos',f);
+  const grid=document.getElementById('v-fotos-grid');
+  grid.insertAdjacentHTML('beforeend','<span id="upl-loading" style="color:#888;font-size:12px">Enviando...</span>');
+  try{
+    const r=await fetch(`/api/veiculos/${editVid}/fotos`,{method:'POST',body:fd});
+    const d=await r.json();
+    if(!d.ok) throw new Error(d.error);
+    await carregarFotosGrid(editVid);
+    input.value='';
+  }catch(e){ alert('Erro ao enviar foto: '+e.message); document.getElementById('upl-loading')?.remove(); }
+}
+async function delFoto(id,vid){
+  if(!confirm('Excluir esta foto?')) return;
+  await DEL('/fotos/'+id);
+  await carregarFotosGrid(vid);
+}
+
+// ═══ HISTÓRICO DO VEÍCULO ═══════════════════════════════════
+async function verHistoricoVeiculo(){
+  if(!editVid) return;
+  const h=await GET(`/veiculos/${editVid}/historico`);
+  const html=h.length?`<div style="max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:8px">${h.map(x=>`
+    <div style="border-bottom:1px solid #2a2a2a;padding-bottom:6px">
+      <div style="font-size:12px;color:#FFCC01;font-weight:600">${x.acao==='criado'?'Criado':x.acao==='editado'?'Editado':'Excluído'} — ${x.usuario_nome||'—'}</div>
+      <div style="font-size:11px;color:#666">${new Date(x.criado_em).toLocaleString('pt-BR')}</div>
+    </div>`).join('')}</div>`:'<p style="color:#888;font-size:13px">Sem histórico ainda.</p>';
+  abrirModalGenerico('Histórico de Alterações', html);
 }
 function autoFillPct(){
   const s=socio(parseInt(document.getElementById('v-socio-id').value));
@@ -849,18 +957,10 @@ async function saveVeiculo(){
     status:document.getElementById('v-status').value, data_venda:document.getElementById('v-data-venda').value,
     valor_venda:parseFloat(document.getElementById('v-valor-venda').value)||0,
     troca:parseFloat(document.getElementById('v-troca').value)||0,
-    obs:document.getElementById('v-obs').value};
+    obs:document.getElementById('v-obs').value,
+    custos:mCustos.filter(c=>c.descricao&&c.valor>0)};
   try{
-    let vid=editVid;
-    if(editVid){ await PUT('/veiculos/'+editVid,body); }
-    else { const novo=await POST('/veiculos',body); vid=novo.id; }
-    // reconcilia lançamentos deste veículo: apaga os antigos e recria os atuais
-    const antigos=await GET('/lancamentos?veiculo_id='+vid);
-    for(const a of antigos){ await DEL('/lancamentos/'+a.id); }
-    const validos=mCustos.filter(c=>c.descricao&&c.valor>0&&c.conta_id);
-    for(const c of validos){
-      await POST('/lancamentos',{tipo:'saida',valor:c.valor,conta_id:c.conta_id,veiculo_id:vid,categoria:'custo_veiculo',descricao:c.descricao,origem:'manual'});
-    }
+    if(editVid) await PUT('/veiculos/'+editVid,body); else await POST('/veiculos',body);
     await loadAll(); closeModal('modal-veiculo'); renderVeiculos(); renderDash();
   }catch(e){alert(e.message);}
 }
@@ -973,16 +1073,19 @@ async function confirmarVenda(){
   if(!venda){alert('Informe o valor de venda.');return;}
   const v=V.find(x=>x.id==vendaVid);
   const troca=parseFloat(document.getElementById('vd-troca').value)||0;
+  const cc=custosDe(vendaVid).map(c=>({descricao:c.descricao,valor:c.valor,pago_por:c.pago_por,data:c.data||''}));
   try{
     await PUT('/veiculos/'+vendaVid,{nome:v.nome,placa:v.placa,ano:v.ano,data_compra:v.data_compra,
       valor_compra:v.valor_compra,tem_socio:v.tem_socio,socio_id:v.socio_id,socio_pct:v.socio_pct,obs:v.obs,
-      status:'Vendido',valor_venda:venda,troca,data_venda:document.getElementById('vd-data').value});
+      tipo_aquisicao:v.tipo_aquisicao,consignante_nome:v.consignante_nome,consignante_contato:v.consignante_contato,
+      valor_minimo_dono:v.valor_minimo_dono,
+      status:'Vendido',valor_venda:venda,troca,data_venda:document.getElementById('vd-data').value,custos:cc});
     if(document.getElementById('cb-troca').checked&&troca>0){
       const tn=document.getElementById('t-nome').value.trim()||'Carro de Troca';
       await POST('/veiculos',{nome:tn,placa:document.getElementById('t-placa').value,
         ano:document.getElementById('t-ano').value,data_compra:document.getElementById('vd-data').value,
         valor_compra:troca,tem_socio:'nao',status:'Disponivel',
-        obs:'Recebido como troca na venda do '+v.nome});
+        obs:'Recebido como troca na venda do '+v.nome,custos:[]});
     }
     await loadAll(); closeModal('modal-venda'); renderVeiculos(); renderDash();
   }catch(e){alert(e.message);}
@@ -1108,8 +1211,7 @@ function renderAcerto(){
   S.forEach(s=>{
     const vs=V.filter(v=>v.socio_id==s.id); if(!vs.length) return;
     const vend=vs.filter(v=>v.status==='Vendido');
-    // TODO: "quanto o sócio pagou" precisa de uma regra própria (conta ≠ quem bancou o custo). Zerado até definirmos isso.
-    const csocio=0;
+    const csocio=C.filter(c=>vs.map(v=>v.id).includes(c.veiculo_id)&&c.pago_por==='socio').reduce((t,c)=>t+c.valor,0);
     const ls=vend.reduce((sum,v)=>sum+calc(v).luc*(v.socio_pct/100),0);
     const saldo=ls-csocio;
     html+=`<div class="sim-card" style="margin-bottom:14px">
@@ -1294,40 +1396,11 @@ function exportarExcel(){
   ws['!cols']=[22,6,10,12,18,16,12,14,14,14,14,10,10,12,12,8,12,12,24].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'Veículos');
 
-  // ── ABA 2: Lançamentos (todo entrada/saída — com ou sem carro) ──
-  const lr=[['Data','Tipo','Descrição','Categoria','Valor','Conta','Veículo','Autor']];
-  [...L].sort((a,b)=>(b.data||'').localeCompare(a.data||'')).forEach(l=>{
-    lr.push([l.data||'',l.tipo==='entrada'?'Entrada':'Saída',l.descricao,l.categoria||'geral',
-      l.valor,l.conta_nome||'',l.veiculo_nome||'—',l.autor_nome||'']);
-  });
-  const ws2=XLSX.utils.aoa_to_sheet(lr);
-  ws2['!cols']=[12,10,28,16,12,12,22,16].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb,ws2,'Lançamentos');
-
-  // ── ABA 3: Resumo por Conta ──
-  const rc=[['Conta','Saldo Inicial','Total Entradas','Total Saídas','Saldo Atual']];
-  CT.forEach(c=>{
-    const lancs=L.filter(l=>l.conta_id===c.id);
-    const totE=lancs.filter(l=>l.tipo==='entrada').reduce((t,l)=>t+l.valor,0);
-    const totS=lancs.filter(l=>l.tipo==='saida').reduce((t,l)=>t+l.valor,0);
-    rc.push([c.nome,c.saldo_inicial||0,totE,totS,(c.saldo_inicial||0)+totE-totS]);
-  });
-  const ws3=XLSX.utils.aoa_to_sheet(rc);
-  ws3['!cols']=[16,16,16,16,16].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb,ws3,'Resumo por Conta');
-
-  // ── ABA 4: Por Categoria ──
-  const cats={};
-  L.forEach(l=>{
-    const k=l.categoria||'geral';
-    if(!cats[k]) cats[k]={entrada:0,saida:0,qtd:0};
-    cats[k][l.tipo]+=l.valor; cats[k].qtd++;
-  });
-  const pc=[['Categoria','Qtd Lançamentos','Total Entradas','Total Saídas','Saldo']];
-  Object.entries(cats).forEach(([k,v])=>pc.push([k,v.qtd,v.entrada,v.saida,v.entrada-v.saida]));
-  const ws4=XLSX.utils.aoa_to_sheet(pc);
-  ws4['!cols']=[20,16,16,16,14].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb,ws4,'Por Categoria');
+  // ── ABA 2: Custos por veículo ──
+  const cr=[['Veículo','Descrição','Valor','Pago por','Data']];
+  C.forEach(c=>{const v=V.find(x=>x.id==c.veiculo_id);cr.push([v?v.nome:'—',c.descricao,c.valor,c.pago_por,c.data||'']);});
+  const ws2=XLSX.utils.aoa_to_sheet(cr); ws2['!cols']=[24,24,12,12,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws2,'Custos');
 
   XLSX.writeFile(wb,`autogestao_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
@@ -1381,61 +1454,7 @@ async function checkAuth(){
   }catch(e){ showLogin(); }
 }
 
-// ═══ CONTAS / EXTRATO ═══════════════════════════════════════
-let contaSelecionada=null;
-async function renderContas(){
-  if(!contaSelecionada && CT.length) contaSelecionada=CT[0].id;
-  const el=document.getElementById('contas-content');
-  if(!CT.length){ el.innerHTML='<p style="color:#888">Nenhuma conta cadastrada.</p>'; return; }
-  const ext=await GET('/contas/'+contaSelecionada+'/extrato');
-  el.innerHTML=`
-    <div class="tabs-bar">${CT.map(c=>`<div class="tab-btn ${c.id==contaSelecionada?'active':''}" onclick="contaSelecionada=${c.id};renderContas()">${c.nome}</div>`).join('')}</div>
-    <div class="kpi-grid" style="margin:16px 0">
-      <div class="kpi-card"><div class="kpi-label">Saldo atual</div><div class="kpi-value" style="color:${ext.saldo_atual>=0?'#FFCC01':'#ff6b6b'}">${R(ext.saldo_atual)}</div></div>
-    </div>
-    <div class="table-wrap">
-      <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Veículo</th><th>Autor</th><th style="text-align:right">Valor</th><th></th></tr></thead>
-      <tbody>${ext.lancamentos.map(l=>`
-        <tr>
-          <td>${l.data||'—'}</td><td>${l.descricao}</td><td>${l.categoria||'—'}</td>
-          <td>${l.veiculo_nome||'—'}</td><td>${l.autor_nome||'—'}</td>
-          <td style="text-align:right;color:${l.tipo==='entrada'?'#3ecf6e':'#ff6b6b'}">${l.tipo==='entrada'?'+':'-'} ${R(l.valor)}</td>
-          <td><button class="del-custo" onclick="delLancamento(${l.id})">×</button></td>
-        </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#666">Sem lançamentos</td></tr>'}</tbody></table>
-    </div>`;
-}
-async function delLancamento(id){
-  if(!confirm('Excluir este lançamento?')) return;
-  await DEL('/lancamentos/'+id); await loadAll(); renderContas();
-}
-function openModalLancamento(){
-  const opts=CT.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
-  const vopts='<option value="">— Nenhum (despesa/receita geral) —</option>'+V.map(v=>`<option value="${v.id}">${v.nome}</option>`).join('');
-  const html=`
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <select id="lz-tipo"><option value="saida">Saída</option><option value="entrada">Entrada</option></select>
-      <input id="lz-desc" type="text" placeholder="Descrição">
-      <input id="lz-valor" type="number" placeholder="Valor">
-      <select id="lz-conta">${opts}</select>
-      <select id="lz-veiculo">${vopts}</select>
-      <input id="lz-data" type="date" value="${new Date().toISOString().slice(0,10)}">
-      <button class="btn btn-primary" onclick="salvarLancamento()">Salvar</button>
-    </div>`;
-  abrirModalGenerico('Novo Lançamento', html);
-}
-async function salvarLancamento(){
-  const body={
-    tipo:document.getElementById('lz-tipo').value,
-    descricao:document.getElementById('lz-desc').value.trim(),
-    valor:parseFloat(document.getElementById('lz-valor').value),
-    conta_id:parseInt(document.getElementById('lz-conta').value),
-    veiculo_id:document.getElementById('lz-veiculo').value?parseInt(document.getElementById('lz-veiculo').value):null,
-    data:document.getElementById('lz-data').value
-  };
-  if(!body.descricao||!body.valor){alert('Preencha descrição e valor.');return;}
-  try{ await POST('/lancamentos',body); closeModal('modal-generico'); await loadAll(); renderContas(); }
-  catch(e){alert(e.message);}
-}
+// ═══ MODAL GENÉRICO (usado pelo cadastro de usuário) ═══════════
 function abrirModalGenerico(titulo,html){
   let m=document.getElementById('modal-generico');
   if(!m){
