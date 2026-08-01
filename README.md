@@ -50,3 +50,12 @@ O `better-sqlite3` não compilou no sandbox onde este código foi escrito
 foi validado só por sintaxe (`node --check`) e revisão manual de cada rota —
 não rodou de ponta a ponta. Teste local ou em um ambiente de staging antes
 de apontar pro banco de produção.
+
+## Atualização: FIPE, fotos e histórico de alterações
+- **FIPE**: dentro do modal de edição do veículo, seção "📊 FIPE" — escolhe marca/modelo/ano e busca. Usa a API pública gratuita da Parallelum (fipe.parallelum.com.br), sem cadastro, limite de 500 consultas/dia.
+- **Fotos**: seção "📷 Fotos" no modal — só aparece depois que o carro já foi salvo (precisa de um ID). Arquivos ficam salvos em `data/uploads`, dentro do mesmo volume do banco — **se o volume não estiver configurado no Railway, as fotos também somem no redeploy, junto com o banco**.
+- **Histórico de alterações**: link "Ver histórico de alterações" no modal — mostra quem criou/editou/excluiu o veículo e quando.
+
+## Pendente (adiado por decisão sua)
+- Alerta de 15 dias continua só na aba, sem notificação por email/navegador — decidiu deixar pra depois.
+- Backup automático pro Google Sheets — segue pendente da conversa anterior (precisa de credencial OAuth do Google, que você disse não saber configurar sozinho).
