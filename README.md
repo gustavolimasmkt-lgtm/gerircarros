@@ -1,6 +1,6 @@
-# AutoGestão v5
+# aclera.cars
 
-Evolução do AutoGestão original: login real, contas com extrato, lançamentos
+Evolução do sistema original: login real, contas com extrato, lançamentos
 gerais (não só custo por carro), auditoria de edição/exclusão e alerta de
 material parado há 15+ dias.
 
@@ -20,7 +20,7 @@ Sem isso, todo redeploy apaga o banco de dados.
 3. Mount path: `/app/data`
 4. Redeploy o serviço.
 
-O `server.js` já lê `DB_PATH` do ambiente (padrão: `./data/autogestao.db`),
+O `server.js` já lê `DB_PATH` do ambiente (padrão: `./data/autogestao.db` (nome do arquivo mantido de propósito, não renomeado, pra não perder o banco já em produção)),
 então não precisa configurar variável nenhuma além do volume.
 
 ## O que mudou em relação à versão anterior
