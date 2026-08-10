@@ -128,6 +128,28 @@ db.exec(`
     pago_em TEXT,
     criado_em TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS promissorias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    veiculo_id INTEGER REFERENCES veiculos(id) ON DELETE SET NULL,
+    cliente_id INTEGER REFERENCES clientes(id),
+    cliente_nome_avulso TEXT,
+    descricao TEXT,
+    valor_total REAL NOT NULL,
+    parcelas INTEGER NOT NULL DEFAULT 1,
+    data_emissao TEXT,
+    criado_em TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS promissoria_parcelas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    promissoria_id INTEGER NOT NULL REFERENCES promissorias(id) ON DELETE CASCADE,
+    numero INTEGER NOT NULL,
+    valor REAL NOT NULL,
+    vencimento TEXT NOT NULL,
+    pago INTEGER DEFAULT 0,
+    pago_em TEXT
+  );
 `);
 
 // migração leve: colunas de consignação/alerta se o banco já existia sem elas
@@ -465,6 +487,91 @@ app.put('/api/parcelas/:id', (req, res) => {
   db.prepare('UPDATE parcelas_venda SET pago=?, pago_em=? WHERE id=?')
     .run(pago, pago ? new Date().toISOString().slice(0,10) : null, req.params.id);
   ok(res, db.prepare('SELECT * FROM parcelas_venda WHERE id=?').get(req.params.id));
+});
+
+// ---------- PROMISSORIAS ----------
+function gerarParcelasPromissoria(promId, valorTotal, parcelas, dataEmissao) {
+  db.prepare('DELETE FROM promissoria_parcelas WHERE promissoria_id=?').run(promId);
+  const n = Math.max(1, parcelas || 1);
+  const valorParcela = valorTotal / n;
+  const dataBase = dataEmissao ? new Date(dataEmissao + 'T12:00:00') : new Date();
+  const ins = db.prepare('INSERT INTO promissoria_parcelas (promissoria_id,numero,valor,vencimento) VALUES (?,?,?,?)');
+  for (let i = 1; i <= n; i++) {
+    const venc = new Date(dataBase);
+    venc.setMonth(venc.getMonth() + i);
+    ins.run(promId, i, valorParcela, venc.toISOString().slice(0, 10));
+  }
+}
+
+app.get('/api/promissorias', (_, res) => {
+  const rows = db.prepare(`
+    SELECT p.*, v.nome as veiculo_nome, v.placa as veiculo_placa,
+           c.nome as cliente_nome_cad, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj, c.endereco as cliente_endereco
+    FROM promissorias p
+    LEFT JOIN veiculos v ON v.id = p.veiculo_id
+    LEFT JOIN clientes c ON c.id = p.cliente_id
+    ORDER BY p.criado_em DESC
+  `).all();
+  const parcelas = db.prepare('SELECT * FROM promissoria_parcelas ORDER BY numero').all();
+  ok(res, rows.map(r => ({
+    ...r,
+    cliente_nome: r.cliente_nome_cad || r.cliente_nome_avulso,
+    parcelas_detalhe: parcelas.filter(p => p.promissoria_id === r.id)
+  })));
+});
+
+app.post('/api/promissorias', (req, res) => {
+  const b = req.body;
+  if (!b.valor_total || b.valor_total <= 0) return err(res, 'Valor total obrigatorio');
+  if (!b.cliente_id && !b.cliente_nome_avulso) return err(res, 'Informe o cliente ou o nome de quem vai assinar');
+  const r = db.prepare(`INSERT INTO promissorias (veiculo_id,cliente_id,cliente_nome_avulso,descricao,valor_total,parcelas,data_emissao)
+    VALUES (?,?,?,?,?,?,?)`)
+    .run(b.veiculo_id || null, b.cliente_id || null, b.cliente_id ? null : (b.cliente_nome_avulso || null),
+         b.descricao || '', b.valor_total, b.parcelas || 1, b.data_emissao || new Date().toISOString().slice(0, 10));
+  gerarParcelasPromissoria(r.lastInsertRowid, b.valor_total, b.parcelas || 1, b.data_emissao);
+  ok(res, db.prepare('SELECT * FROM promissorias WHERE id=?').get(r.lastInsertRowid));
+});
+
+app.post('/api/veiculos/:id/promissoria', (req, res) => {
+  const v = db.prepare('SELECT * FROM veiculos WHERE id=?').get(req.params.id);
+  if (!v) return err(res, 'Veiculo nao encontrado', 404);
+  if (!v.cliente_id) return err(res, 'Esse veiculo nao tem cliente vinculado a venda');
+  let prom = db.prepare('SELECT * FROM promissorias WHERE veiculo_id=?').get(v.id);
+  const valorTotal = (v.valor_venda || 0) - (v.entrada || 0);
+  const parcelas = v.parcelas || 1;
+  if (!prom) {
+    const r = db.prepare(`INSERT INTO promissorias (veiculo_id,cliente_id,descricao,valor_total,parcelas,data_emissao)
+      VALUES (?,?,?,?,?,?)`)
+      .run(v.id, v.cliente_id, 'Venda do veiculo ' + v.nome, valorTotal, parcelas, v.data_venda || new Date().toISOString().slice(0, 10));
+    gerarParcelasPromissoria(r.lastInsertRowid, valorTotal, parcelas, v.data_venda);
+    prom = db.prepare('SELECT * FROM promissorias WHERE id=?').get(r.lastInsertRowid);
+  }
+  const parcelasDetalhe = db.prepare('SELECT * FROM promissoria_parcelas WHERE promissoria_id=? ORDER BY numero').all(prom.id);
+  const cliente = db.prepare('SELECT * FROM clientes WHERE id=?').get(v.cliente_id);
+  ok(res, { promissoria: prom, parcelas: parcelasDetalhe, cliente, veiculo: v });
+});
+
+app.get('/api/promissorias/:id', (req, res) => {
+  const prom = db.prepare('SELECT * FROM promissorias WHERE id=?').get(req.params.id);
+  if (!prom) return err(res, 'Promissoria nao encontrada', 404);
+  const parcelas = db.prepare('SELECT * FROM promissoria_parcelas WHERE promissoria_id=? ORDER BY numero').all(prom.id);
+  const cliente = prom.cliente_id ? db.prepare('SELECT * FROM clientes WHERE id=?').get(prom.cliente_id) : null;
+  const veiculo = prom.veiculo_id ? db.prepare('SELECT * FROM veiculos WHERE id=?').get(prom.veiculo_id) : null;
+  ok(res, { promissoria: prom, parcelas, cliente, veiculo });
+});
+
+app.delete('/api/promissorias/:id', (req, res) => {
+  db.prepare('DELETE FROM promissorias WHERE id=?').run(req.params.id);
+  ok(res, { id: req.params.id });
+});
+
+app.put('/api/promissoria-parcelas/:id', (req, res) => {
+  const item = db.prepare('SELECT * FROM promissoria_parcelas WHERE id=?').get(req.params.id);
+  if (!item) return err(res, 'Parcela nao encontrada', 404);
+  const pago = req.body.pago ? 1 : 0;
+  db.prepare('UPDATE promissoria_parcelas SET pago=?, pago_em=? WHERE id=?')
+    .run(pago, pago ? new Date().toISOString().slice(0,10) : null, req.params.id);
+  ok(res, db.prepare('SELECT * FROM promissoria_parcelas WHERE id=?').get(req.params.id));
 });
 
 // ---------- CLIENTES ----------
