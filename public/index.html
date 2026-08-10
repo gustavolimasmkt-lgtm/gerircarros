@@ -393,8 +393,8 @@ tr:hover td{background:var(--surface-2)}
             <div class="tab-btn" onclick="setPeriodo('custom',this)" title="Personalizado"><span class="pc-icon">📅</span><span class="pc-text">Personalizado</span></div>
           </div>
           <div id="custom-dates" style="display:none;display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%">
-            <div class="date-field"><label>De</label><input type="date" id="filtro-de" class="date-input" onchange="renderDash()"></div>
-            <div class="date-field"><label>Até</label><input type="date" id="filtro-ate" class="date-input" onchange="renderDash()"></div>
+            <div class="date-field"><label>De</label><input type="date" autocomplete="off" id="filtro-de" class="date-input" onchange="renderDash()"></div>
+            <div class="date-field"><label>Até</label><input type="date" autocomplete="off" id="filtro-ate" class="date-input" onchange="renderDash()"></div>
           </div>
         </div>
         <div class="kpi-grid" id="kpi-grid"></div>
@@ -594,7 +594,7 @@ tr:hover td{background:var(--surface-2)}
           </select>
         </div>
         <div id="v-compra-fields" style="display:contents">
-          <div class="form-group"><label>Data da Compra</label><input type="date" id="v-data-compra"></div>
+          <div class="form-group"><label>Data da Compra</label><input type="date" autocomplete="off" id="v-data-compra"></div>
           <div class="form-group"><label>Valor de Compra (R$) *</label><input type="text" inputmode="decimal" id="v-valor-compra" placeholder="0" oninput="updateResumo()"></div>
         </div>
         <div id="v-consig-fields" style="display:none">
@@ -642,7 +642,7 @@ tr:hover td{background:var(--surface-2)}
             <option value="Vendido">Vendido</option>
           </select>
         </div>
-        <div class="form-group"><label>Data da Venda</label><input type="date" id="v-data-venda"></div>
+        <div class="form-group"><label>Data da Venda</label><input type="date" autocomplete="off" id="v-data-venda"></div>
         <div class="form-group"><label>Preço Alvo / Venda (R$)</label><input type="text" inputmode="decimal" id="v-valor-venda" placeholder="0" oninput="updateResumo()"></div>
         <div class="form-group"><label>Carro Troca (R$)</label><input type="text" inputmode="decimal" id="v-troca" placeholder="0"></div>
         <hr class="sec-div"><div class="sec-lbl">📊 FIPE</div>
@@ -731,7 +731,7 @@ tr:hover td{background:var(--surface-2)}
         <div class="form-group full" id="venda-label" style="text-align:center;padding:10px;background:#111;border-radius:8px;border:1px solid #333;color:#FFCC01;font-weight:700;font-size:14px"></div>
         <div class="form-group"><label>Valor de Venda (R$)</label><input type="text" inputmode="decimal" id="vd-valor" oninput="calcVenda()" placeholder="0"></div>
         <div class="form-group"><label>Carro Troca (R$)</label><input type="text" inputmode="decimal" id="vd-troca" oninput="calcVenda()" placeholder="0" value="0"></div>
-        <div class="form-group"><label>Data da Venda</label><input type="date" id="vd-data"></div>
+        <div class="form-group"><label>Data da Venda</label><input type="date" autocomplete="off" id="vd-data"></div>
         <div class="form-group"><label>Cliente</label>
           <select id="vd-cliente"><option value="">— Não vincular —</option></select>
         </div>
@@ -1137,7 +1137,7 @@ function renderCustos(){
     <div class="custo-row">
       <input type="text" value="${c.descricao}" placeholder="Ex: Polimento" oninput="mCustos[${i}].descricao=this.value;updateResumo()">
       <input type="text" inputmode="decimal" value="${c.valor||''}" placeholder="0" oninput="mCustos[${i}].valor=parseMoeda(this.value);updateResumo()">
-      <input type="date" value="${c.data||''}" oninput="mCustos[${i}].data=this.value">
+      <input type="date" autocomplete="off" value="${c.data||''}" oninput="mCustos[${i}].data=this.value">
       <select onchange="mCustos[${i}].pago_por=this.value">
         <option value="eu" ${c.pago_por==='eu'?'selected':''}>Eu</option>
         <option value="socio" ${c.pago_por==='socio'?'selected':''}>Sócio</option>
@@ -1571,7 +1571,7 @@ function abrirModalPromissoriaAvulsa(){
       <input id="pa-descricao" type="text" placeholder="Descrição (ex: Empréstimo, sinal de peça...)">
       <input id="pa-valor" type="text" inputmode="decimal" placeholder="Valor total (ex: 1.500,00)">
       <input id="pa-parcelas" type="number" placeholder="Parcelas" value="1" min="1">
-      <input id="pa-data" type="date" value="${new Date().toISOString().slice(0,10)}">
+      <input id="pa-data" type="date" autocomplete="off" value="${new Date().toISOString().slice(0,10)}">
       <button class="btn btn-primary" onclick="salvarPromissoriaAvulsa()">Gerar</button>
     </div>`;
   abrirModalGenerico('Nova Promissória Avulsa',html);
@@ -1631,7 +1631,7 @@ function verParcelasPromissoria(id){
       <input type="checkbox" ${pc.pago?'checked':''} onchange="togglePromissoriaParcela(${pc.id},this.checked,${id})">
       <span style="width:64px;font-size:12px;color:#888">Parc. ${pc.numero}/${p.parcelas}</span>
       <input type="text" inputmode="decimal" value="${pc.valor}" style="width:110px" onchange="editarParcelaPromissoria(${pc.id},${id},'valor',this.value)">
-      <input type="date" value="${pc.vencimento}" style="width:150px" onchange="editarParcelaPromissoria(${pc.id},${id},'vencimento',this.value)">
+      <input type="date" autocomplete="off" value="${pc.vencimento}" style="width:150px" onchange="editarParcelaPromissoria(${pc.id},${id},'vencimento',this.value)">
     </div>`).join('')}</div>`;
   abrirModalGenerico('Editar — '+(p.cliente_nome||''),html);
 }
