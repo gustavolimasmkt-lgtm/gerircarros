@@ -280,6 +280,7 @@ tr:hover td{background:var(--surface-2)}
       <div class="nav-section">Operação</div>
       <div class="nav-item" onclick="showPage('checklist',this)"><span class="icon">☑️</span> Checklist</div>
       <div class="nav-item" onclick="showPage('receber',this)"><span class="icon">💵</span> Contas a Receber</div>
+      <div class="nav-item" onclick="showPage('promissorias',this)"><span class="icon">📄</span> Promissórias</div>
       <div class="nav-item" onclick="showPage('alertas',this)"><span class="icon">⏰</span> Alertas</div>
       <div class="nav-section">Pessoas</div>
       <div class="nav-item" onclick="showPage('clientes',this)"><span class="icon">📇</span> Clientes</div>
@@ -449,6 +450,14 @@ tr:hover td{background:var(--surface-2)}
     <div id="page-receber" class="page">
       <div class="header"><div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Contas a Receber</h2><div class="header-sub">Parcelas de vendas financiadas</div></div></div></div>
       <div class="content" id="receber-content"></div>
+    </div>
+
+    <div id="page-promissorias" class="page">
+      <div class="header">
+        <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Promissórias</h2><div class="header-sub">Todas as notas emitidas, vinculadas a venda ou avulsas</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalPromissoriaAvulsa()">+ Promissória Avulsa</button>
+      </div>
+      <div class="content" id="promissorias-content"></div>
     </div>
 
   </div><!-- /main -->
@@ -819,7 +828,7 @@ async function showPage(p,el){
   document.getElementById('page-'+p).classList.add('active');
   if(el) el.classList.add('active');
   await loadAll();
-  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas,checklist:renderChecklistPage,receber:renderReceber};
+  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas,checklist:renderChecklistPage,receber:renderReceber,promissorias:renderPromissorias};
   if(map[p]) map[p]();
 }
 
@@ -1315,18 +1324,12 @@ async function delChecklistItem(id){
 }
 
 // ═══ NOTA PROMISSÓRIA ════════════════════════════════════════
-function gerarPromissoria(vid){
-  const v=V.find(x=>x.id==vid);
-  if(!v){alert('Veículo não encontrado.');return;}
-  if(!v.cliente_id){alert('Esse carro não tem cliente vinculado à venda. Edite a venda e selecione o cliente primeiro.');return;}
-  const cli=CL.find(x=>x.id==v.cliente_id);
-  const parcelas=v.parcelas||1;
-  const valorTotal=(v.valor_venda||0)-(v.entrada||0);
-  const valorParcela=parcelas>0?valorTotal/parcelas:valorTotal;
+function imprimirPromissoria(prom,parcelas,cliente,veiculo){
+  const cli=cliente;
   const hoje=new Date().toLocaleDateString('pt-BR');
   const w=window.open('','_blank');
   w.document.write(`
-    <html><head><title>Nota Promissória - ${cli?cli.nome:''}</title>
+    <html><head><title>Nota Promissória - ${cli?cli.nome:prom.cliente_nome_avulso||''}</title>
     <style>
       body{font-family:Georgia,serif;max-width:700px;margin:40px auto;color:#111;line-height:1.7}
       .nota{border:2px solid #333;padding:30px;margin-bottom:30px;page-break-after:always}
@@ -1339,26 +1342,104 @@ function gerarPromissoria(vid){
     <div class="no-print" style="text-align:center;margin-bottom:20px">
       <button onclick="window.print()" style="padding:10px 20px;font-size:14px">🖨️ Imprimir / Salvar PDF</button>
     </div>
-    ${Array.from({length:parcelas}).map((_,i)=>{
-      const venc=new Date(); venc.setMonth(venc.getMonth()+i+1);
-      return `<div class="nota">
+    ${parcelas.map(p=>`<div class="nota">
         <h1>NOTA PROMISSÓRIA</h1>
-        <div style="text-align:right">Nº ${i+1}/${parcelas}</div>
-        <div class="valor">${R(valorParcela)}</div>
-        <div class="linha">Vencimento: <strong>${venc.toLocaleDateString('pt-BR')}</strong></div>
-        <div class="linha">Aos ${venc.toLocaleDateString('pt-BR')}, pagarei por esta única via de NOTA PROMISSÓRIA
-        a GreenCar, ou à sua ordem, a quantia de <strong>${R(valorParcela)}</strong>,
-        em pagamento referente à aquisição do veículo <strong>${v.nome}</strong>
-        (placa ${v.placa||'não informada'}), pagável nesta praça.</div>
-        <div class="linha">Emitente: <strong>${cli?cli.nome:''}</strong></div>
-        <div class="linha">CPF/CNPJ: ${cli?cli.cpf_cnpj||'—':''}</div>
-        <div class="linha">Endereço: ${cli?cli.endereco||'—':''}</div>
+        <div style="text-align:right">Nº ${p.numero}/${parcelas.length}</div>
+        <div class="valor">${R(p.valor)}</div>
+        <div class="linha">Vencimento: <strong>${new Date(p.vencimento+'T12:00:00').toLocaleDateString('pt-BR')}</strong></div>
+        <div class="linha">Aos ${new Date(p.vencimento+'T12:00:00').toLocaleDateString('pt-BR')}, pagarei por esta única via de NOTA PROMISSÓRIA
+        a GreenCar, ou à sua ordem, a quantia de <strong>${R(p.valor)}</strong>${prom.descricao?', referente a '+prom.descricao:''},
+        pagável nesta praça.</div>
+        <div class="linha">Emitente: <strong>${cli?cli.nome:(prom.cliente_nome_avulso||'')}</strong></div>
+        <div class="linha">CPF/CNPJ: ${cli?cli.cpf_cnpj||'—':'—'}</div>
+        <div class="linha">Endereço: ${cli?cli.endereco||'—':'—'}</div>
         <div class="linha">Emitida em: ${hoje}</div>
         <div class="assinatura">Assinatura do Emitente</div>
-      </div>`;
-    }).join('')}
+      </div>`).join('')}
     </body></html>`);
   w.document.close();
+}
+async function gerarPromissoria(vid){
+  try{
+    const d=await POST(`/veiculos/${vid}/promissoria`);
+    imprimirPromissoria(d.promissoria,d.parcelas,d.cliente,d.veiculo);
+    await loadAll(); if(document.getElementById('page-promissorias')?.classList.contains('active')) renderPromissorias();
+  }catch(e){alert(e.message);}
+}
+
+// ═══ PROMISSÓRIA AVULSA ══════════════════════════════════════
+function abrirModalPromissoriaAvulsa(){
+  const opts='<option value="">— Digitar nome (sem cadastro) —</option>'+CL.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <select id="pa-cliente" onchange="document.getElementById('pa-nome-avulso').style.display=this.value?'none':'block'">${opts}</select>
+      <input id="pa-nome-avulso" type="text" placeholder="Nome de quem vai assinar">
+      <input id="pa-descricao" type="text" placeholder="Descrição (ex: Empréstimo, sinal de peça...)">
+      <input id="pa-valor" type="number" placeholder="Valor total (R$)">
+      <input id="pa-parcelas" type="number" placeholder="Parcelas" value="1" min="1">
+      <input id="pa-data" type="date" value="${new Date().toISOString().slice(0,10)}">
+      <button class="btn btn-primary" onclick="salvarPromissoriaAvulsa()">Gerar</button>
+    </div>`;
+  abrirModalGenerico('Nova Promissória Avulsa',html);
+}
+async function salvarPromissoriaAvulsa(){
+  const clienteId=document.getElementById('pa-cliente').value?parseInt(document.getElementById('pa-cliente').value):null;
+  const nomeAvulso=document.getElementById('pa-nome-avulso').value.trim();
+  const valor=parseFloat(document.getElementById('pa-valor').value)||0;
+  const parcelas=parseInt(document.getElementById('pa-parcelas').value)||1;
+  if(!clienteId&&!nomeAvulso){alert('Selecione um cliente ou digite o nome.');return;}
+  if(!valor){alert('Informe o valor total.');return;}
+  try{
+    const prom=await POST('/promissorias',{cliente_id:clienteId,cliente_nome_avulso:nomeAvulso,
+      descricao:document.getElementById('pa-descricao').value,valor_total:valor,parcelas,
+      data_emissao:document.getElementById('pa-data').value});
+    const d=await GET('/promissorias/'+prom.id);
+    closeModal('modal-generico');
+    imprimirPromissoria(d.promissoria,d.parcelas,d.cliente,d.veiculo);
+    await loadAll(); renderPromissorias();
+  }catch(e){alert(e.message);}
+}
+
+// ═══ HISTÓRICO DE PROMISSÓRIAS ═══════════════════════════════
+let PROM=[];
+async function renderPromissorias(){
+  PROM=await GET('/promissorias');
+  const el=document.getElementById('promissorias-content');
+  if(!PROM.length){ el.innerHTML='<div class="empty-state"><div class="icon">📄</div><p>Nenhuma promissória emitida ainda.</p></div>'; return; }
+  el.innerHTML=`<div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Emitida em</th><th>Cliente</th><th>Origem</th><th>Valor Total</th><th>Parcelas</th><th></th></tr></thead>
+    <tbody>${PROM.map(p=>{
+      const pagas=p.parcelas_detalhe.filter(x=>x.pago).length;
+      return`<tr>
+        <td>${p.data_emissao?new Date(p.data_emissao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}</td>
+        <td>${p.cliente_nome||'—'}</td>
+        <td>${p.veiculo_nome?'🚗 '+p.veiculo_nome:'Avulsa'}</td>
+        <td class="money">${R(p.valor_total)}</td>
+        <td>${pagas}/${p.parcelas} pagas</td>
+        <td style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm" onclick="verParcelasPromissoria(${p.id})">Ver parcelas</button>
+          <button class="btn btn-danger btn-sm" onclick="delPromissoria(${p.id})">🗑</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table></div></div>`;
+}
+function verParcelasPromissoria(id){
+  const p=PROM.find(x=>x.id==id); if(!p) return;
+  const html=p.parcelas_detalhe.map(pc=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a2a2a">
+      <input type="checkbox" ${pc.pago?'checked':''} onchange="togglePromissoriaParcela(${pc.id},this.checked,${id})">
+      <span style="flex:1">Parcela ${pc.numero}/${p.parcelas} — ${R(pc.valor)} — vence ${new Date(pc.vencimento+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+    </div>`).join('');
+  abrirModalGenerico('Parcelas — '+(p.cliente_nome||''),html);
+}
+async function togglePromissoriaParcela(id,pago,promId){
+  await PUT('/promissoria-parcelas/'+id,{pago});
+  await renderPromissorias();
+  verParcelasPromissoria(promId);
+}
+async function delPromissoria(id){
+  if(!confirm('Excluir esta promissória e todas as parcelas dela?')) return;
+  await DEL('/promissorias/'+id);
+  await renderPromissorias();
 }
 function renderSocios(){
   if(!S.length){
