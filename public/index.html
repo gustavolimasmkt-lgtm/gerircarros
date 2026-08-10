@@ -251,11 +251,6 @@ tr:hover td{background:var(--surface-2)}
 }
 
 /* Period as cards */
-.period-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
-.period-cards .tab-btn{background:var(--surface-inset);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;text-align:center;font-size:12px;color:var(--text-dim);font-weight:600;cursor:pointer;transition:all .15s var(--ease);display:flex;flex-direction:column;align-items:center;gap:4px;user-select:none}
-.period-cards .tab-btn .pc-icon{font-size:16px}
-.period-cards .tab-btn.active{background:var(--accent-wash);border-color:var(--accent);color:var(--accent)}
-.period-cards .tab-btn:hover:not(.active){border-color:#3a3a3a;color:var(--text)}
 .period-bar{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:13px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .period-label{font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em}
 .date-input{background:var(--surface-inset);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:12px;outline:none}
@@ -303,7 +298,7 @@ tr:hover td{background:var(--surface-2)}
   .socio-split-3{grid-template-columns:1fr}
   .pc-text{display:none}
   .veiculos-table-desktop{display:none}
-  .veiculos-cards-mobile{display:flex}
+  .veiculos-cards-mobile{display:flex;flex-direction:column;gap:12px}
   .custo-row .del-custo{justify-self:end}
   .modal-header,.modal-body,.modal-footer{padding-left:16px;padding-right:16px}
   .btn-sm{padding:8px 12px;min-height:34px}
@@ -390,12 +385,12 @@ tr:hover td{background:var(--surface-2)}
         </div>
         <div class="period-bar">
           <span class="period-label">📅 Período</span>
-          <div class="period-cards" style="flex:1">
-            <div class="tab-btn active" onclick="setPeriodo('tudo',this)"><span class="pc-icon">📋</span>Tudo</div>
-            <div class="tab-btn" onclick="setPeriodo('mes',this)"><span class="pc-icon">📆</span>Este mês</div>
-            <div class="tab-btn" onclick="setPeriodo('trim',this)"><span class="pc-icon">🗓️</span>Trimestre</div>
-            <div class="tab-btn" onclick="setPeriodo('ano',this)"><span class="pc-icon">📅</span>Este ano</div>
-            <div class="tab-btn" onclick="setPeriodo('custom',this)" title="Personalizado"><span class="pc-icon">🗓️</span><span class="pc-text">Personalizado</span></div>
+          <div class="tabs-bar" style="margin-bottom:0;background:transparent;padding:0">
+            <div class="tab-btn active" onclick="setPeriodo('tudo',this)">Tudo</div>
+            <div class="tab-btn" onclick="setPeriodo('mes',this)">Este mês</div>
+            <div class="tab-btn" onclick="setPeriodo('trim',this)">Trimestre</div>
+            <div class="tab-btn" onclick="setPeriodo('ano',this)">Este ano</div>
+            <div class="tab-btn" onclick="setPeriodo('custom',this)" title="Personalizado"><span class="pc-icon">📅</span><span class="pc-text">Personalizado</span></div>
           </div>
           <div id="custom-dates" style="display:none;display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%">
             <div class="date-field"><label>De</label><input type="date" id="filtro-de" class="date-input" onchange="renderDash()"></div>
