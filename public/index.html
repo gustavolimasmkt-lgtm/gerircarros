@@ -1371,10 +1371,19 @@ async function saveVeiculo(){
     troca:moedaVal('v-troca'),
     obs:document.getElementById('v-obs').value,
     custos:mCustos.filter(c=>c.descricao&&c.valor>0)};
+  let etapa='montando dados';
   try{
+    etapa='enviando pro servidor';
     if(editVid) await PUT('/veiculos/'+editVid,body); else await POST('/veiculos',body);
-    await loadAll(); closeModal('modal-veiculo'); renderVeiculos(); renderDash();
-  }catch(e){alert('ERRO SALVAR VEICULO:\n'+e.message+'\n\nSTACK:\n'+(e.stack||'sem stack'));}
+    etapa='recarregando lista';
+    await loadAll();
+    etapa='fechando modal';
+    closeModal('modal-veiculo');
+    etapa='atualizando tela de veiculos';
+    renderVeiculos();
+    etapa='atualizando dashboard';
+    renderDash();
+  }catch(e){alert('ERRO NA ETAPA: '+etapa+'\n\n'+e.name+': '+e.message+'\n\nSTACK:\n'+(e.stack||'sem stack'));}
 }
 async function delVeiculo(id){
   if(!confirm('Remover veículo e todos os custos?')) return;
