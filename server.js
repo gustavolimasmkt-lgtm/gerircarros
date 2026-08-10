@@ -581,6 +581,17 @@ app.get('/api/promissorias/:id', (req, res) => {
   ok(res, { promissoria: prom, parcelas, cliente, veiculo });
 });
 
+app.put('/api/promissorias/:id', (req, res) => {
+  const prom = db.prepare('SELECT * FROM promissorias WHERE id=?').get(req.params.id);
+  if (!prom) return err(res, 'Promissoria nao encontrada', 404);
+  const b = req.body;
+  db.prepare('UPDATE promissorias SET descricao=?, cliente_id=?, cliente_nome_avulso=? WHERE id=?')
+    .run(b.descricao !== undefined ? b.descricao : prom.descricao,
+         b.cliente_id !== undefined ? b.cliente_id : prom.cliente_id,
+         b.cliente_id ? null : (b.cliente_nome_avulso !== undefined ? b.cliente_nome_avulso : prom.cliente_nome_avulso),
+         req.params.id);
+  ok(res, db.prepare('SELECT * FROM promissorias WHERE id=?').get(req.params.id));
+});
 app.delete('/api/promissorias/:id', (req, res) => {
   db.prepare('DELETE FROM promissorias WHERE id=?').run(req.params.id);
   ok(res, { id: req.params.id });
@@ -589,10 +600,16 @@ app.delete('/api/promissorias/:id', (req, res) => {
 app.put('/api/promissoria-parcelas/:id', (req, res) => {
   const item = db.prepare('SELECT * FROM promissoria_parcelas WHERE id=?').get(req.params.id);
   if (!item) return err(res, 'Parcela nao encontrada', 404);
-  const pago = req.body.pago ? 1 : 0;
-  db.prepare('UPDATE promissoria_parcelas SET pago=?, pago_em=? WHERE id=?')
-    .run(pago, pago ? new Date().toISOString().slice(0,10) : null, req.params.id);
-  ok(res, db.prepare('SELECT * FROM promissoria_parcelas WHERE id=?').get(req.params.id));
+  const pago = req.body.pago !== undefined ? (req.body.pago ? 1 : 0) : item.pago;
+  const valor = req.body.valor !== undefined ? req.body.valor : item.valor;
+  const vencimento = req.body.vencimento !== undefined ? req.body.vencimento : item.vencimento;
+  db.prepare('UPDATE promissoria_parcelas SET pago=?, pago_em=?, valor=?, vencimento=? WHERE id=?')
+    .run(pago, pago ? (item.pago_em || new Date().toISOString().slice(0,10)) : null, valor, vencimento, req.params.id);
+  const atualizado = db.prepare('SELECT * FROM promissoria_parcelas WHERE id=?').get(req.params.id);
+  // mantem o valor_total da promissoria coerente com a soma das parcelas
+  const soma = db.prepare('SELECT SUM(valor) as t FROM promissoria_parcelas WHERE promissoria_id=?').get(atualizado.promissoria_id).t;
+  db.prepare('UPDATE promissorias SET valor_total=? WHERE id=?').run(soma, atualizado.promissoria_id);
+  ok(res, atualizado);
 });
 
 // ---------- CLIENTES ----------
