@@ -1612,7 +1612,7 @@ async function renderPromissorias(){
         <td class="money">${R(p.valor_total)}</td>
         <td>${pagas}/${p.parcelas} pagas</td>
         <td style="display:flex;gap:4px">
-          <button class="btn btn-secondary btn-sm" onclick="verParcelasPromissoria(${p.id})">Ver parcelas</button>
+          <button class="btn btn-secondary btn-sm" onclick="verParcelasPromissoria(${p.id})">✏️ Editar</button>
           <button class="btn btn-danger btn-sm" onclick="delPromissoria(${p.id})">🗑</button>
         </td>
       </tr>`;
@@ -1620,14 +1620,24 @@ async function renderPromissorias(){
 }
 function verParcelasPromissoria(id){
   const p=PROM.find(x=>x.id==id); if(!p) return;
-  const html=`<div style="display:flex;flex-direction:column;gap:4px">${p.parcelas_detalhe.map(pc=>`
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      <label style="font-size:10px;color:#888;text-transform:uppercase;font-weight:600">Descrição</label>
+      <input type="text" id="pe-descricao" value="${(p.descricao||'').replace(/"/g,'&quot;')}" onchange="editarDescricaoPromissoria(${id},this.value)">
+    </div>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;font-weight:600;margin-bottom:6px">Parcelas</div>
+    <div style="display:flex;flex-direction:column;gap:4px">${p.parcelas_detalhe.map(pc=>`
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a2a2a;flex-wrap:wrap">
       <input type="checkbox" ${pc.pago?'checked':''} onchange="togglePromissoriaParcela(${pc.id},this.checked,${id})">
       <span style="width:64px;font-size:12px;color:#888">Parc. ${pc.numero}/${p.parcelas}</span>
       <input type="text" inputmode="decimal" value="${pc.valor}" style="width:110px" onchange="editarParcelaPromissoria(${pc.id},${id},'valor',this.value)">
       <input type="date" value="${pc.vencimento}" style="width:150px" onchange="editarParcelaPromissoria(${pc.id},${id},'vencimento',this.value)">
     </div>`).join('')}</div>`;
-  abrirModalGenerico('Parcelas — '+(p.cliente_nome||''),html);
+  abrirModalGenerico('Editar — '+(p.cliente_nome||''),html);
+}
+async function editarDescricaoPromissoria(id,descricao){
+  await PUT('/promissorias/'+id,{descricao});
+  await renderPromissorias();
 }
 async function editarParcelaPromissoria(id,promId,campo,valor){
   const body={};
