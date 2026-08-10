@@ -471,14 +471,35 @@ app.get('/api/custos', (_, res) => ok(res, db.prepare('SELECT * FROM custos ORDE
 
 // ---------- PARCELAS (CONTAS A RECEBER) ----------
 app.get('/api/parcelas', (_, res) => {
-  ok(res, db.prepare(`
-    SELECT p.*, v.nome as veiculo_nome, v.placa as veiculo_placa,
-           c.nome as cliente_nome, c.telefone as cliente_telefone
+  const daVenda = db.prepare(`
+    SELECT p.id, p.numero, p.valor, p.vencimento, p.pago, p.pago_em,
+           v.nome as veiculo_nome, v.placa as veiculo_placa,
+           c.nome as cliente_nome, c.telefone as cliente_telefone,
+           'venda' as origem
     FROM parcelas_venda p
     JOIN veiculos v ON v.id = p.veiculo_id
     LEFT JOIN clientes c ON c.id = v.cliente_id
-    ORDER BY p.vencimento ASC
-  `).all());
+  `).all();
+  const daPromissoria = db.prepare(`
+    SELECT pp.id, pp.numero, pp.valor, pp.vencimento, pp.pago, pp.pago_em,
+           COALESCE(v.nome, pr.descricao, 'Avulsa') as veiculo_nome, v.placa as veiculo_placa,
+           COALESCE(c.nome, pr.cliente_nome_avulso) as cliente_nome, c.telefone as cliente_telefone,
+           'promissoria' as origem
+    FROM promissoria_parcelas pp
+    JOIN promissorias pr ON pr.id = pp.promissoria_id
+    LEFT JOIN veiculos v ON v.id = pr.veiculo_id
+    LEFT JOIN clientes c ON c.id = pr.cliente_id
+  `).all();
+  ok(res, [...daVenda, ...daPromissoria].sort((a,b)=>a.vencimento.localeCompare(b.vencimento)));
+});
+app.put('/api/receber/:origem/:id', (req, res) => {
+  const tabela = req.params.origem === 'promissoria' ? 'promissoria_parcelas' : 'parcelas_venda';
+  const item = db.prepare(`SELECT * FROM ${tabela} WHERE id=?`).get(req.params.id);
+  if (!item) return err(res, 'Parcela nao encontrada', 404);
+  const pago = req.body.pago ? 1 : 0;
+  db.prepare(`UPDATE ${tabela} SET pago=?, pago_em=? WHERE id=?`)
+    .run(pago, pago ? new Date().toISOString().slice(0,10) : null, req.params.id);
+  ok(res, db.prepare(`SELECT * FROM ${tabela} WHERE id=?`).get(req.params.id));
 });
 app.put('/api/parcelas/:id', (req, res) => {
   const item = db.prepare('SELECT * FROM parcelas_venda WHERE id=?').get(req.params.id);
