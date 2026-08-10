@@ -1374,7 +1374,7 @@ async function saveVeiculo(){
   try{
     if(editVid) await PUT('/veiculos/'+editVid,body); else await POST('/veiculos',body);
     await loadAll(); closeModal('modal-veiculo'); renderVeiculos(); renderDash();
-  }catch(e){alert(e.message);}
+  }catch(e){alert('ERRO SALVAR VEICULO:\n'+e.message+'\n\nSTACK:\n'+(e.stack||'sem stack'));}
 }
 async function delVeiculo(id){
   if(!confirm('Remover veículo e todos os custos?')) return;
