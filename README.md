@@ -59,3 +59,10 @@ de apontar pro banco de produção.
 ## Pendente (adiado por decisão sua)
 - Alerta de 15 dias continua só na aba, sem notificação por email/navegador — decidiu deixar pra depois.
 - Backup automático pro Google Sheets — segue pendente da conversa anterior (precisa de credencial OAuth do Google, que você disse não saber configurar sozinho).
+
+## Atualização: Checklist como página, Contas a Receber, recuperação de senha, placa duplicada, mobile
+- **Checklist** virou página própria no menu (☑️ Checklist), com busca — igual ao concorrente.
+- **Contas a Receber** (💵): toda venda com forma de pagamento parcelada gera automaticamente as parcelas (vencimento mensal a partir da data da venda). Marcar parcela como paga é manual.
+- **Recuperação de senha SEM e-mail**: no cadastro, o sistema gera um código único (ex: A1B2-C3D4-E5F6) mostrado UMA vez — precisa ser salvo pelo usuário. Pra recuperar senha: tela "Esqueci a senha" no login, pede e-mail + código + nova senha. Cada uso gera um novo código (o antigo expira). Usuário logado também pode gerar um novo código a qualquer momento pelo menu.
+- **Placa duplicada**: bloqueada no cadastro/edição de veículo (compara ignorando maiúsculas e hífen).
+- **Mobile**: formulários em coluna única, inputs em 16px (evita zoom automático do iOS), tabelas com scroll horizontal, botões com alvo de toque maior.
