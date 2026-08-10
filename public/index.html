@@ -44,7 +44,8 @@
   --font-body:'Segoe UI',system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-*:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.qa-card,.socio-card{-webkit-tap-highlight-color:transparent}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 html{overflow-x:hidden;width:100%}
 body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;width:100%;position:relative}
@@ -201,6 +202,20 @@ tr:hover td{background:var(--surface-2)}
 
 /* Socio cards */
 .socios-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+
+/* Vehicle cards (mobile) */
+.veiculos-cards-mobile{display:none}
+.v-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-card)}
+.v-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}
+.v-card-name{font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text)}
+.v-card-sub{font-size:11.5px;color:var(--text-faint);margin-top:2px}
+.v-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;padding:12px 0;border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft)}
+.v-card-field .vl{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.v-card-field .vv{font-family:var(--font-display);font-size:14px;font-weight:600;color:var(--text)}
+.v-card-desc{font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5}
+.v-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.v-card-actions-row2{display:flex;gap:8px;margin-top:8px}
+.v-card-actions-row2 .btn{flex:1;justify-content:center}
 .socio-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;box-shadow:var(--shadow-card);transition:border-color .15s var(--ease)}
 .socio-card:hover{border-color:#3a3a3a}
 .socio-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:.85}
@@ -220,7 +235,27 @@ tr:hover td{background:var(--surface-2)}
 .search-bar input{background:none;border:none;outline:none;color:var(--text);font-size:12px;width:100%;font-family:inherit}
 .search-bar input::placeholder{color:var(--text-faint)}
 
-/* Period filter */
+/* Bottom nav (mobile only) */
+.bottom-nav{display:none}
+@media(max-width:700px){
+  .bottom-nav{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:150;
+    background:var(--surface);border-top:1px solid var(--border-soft);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:var(--radius-sm);color:var(--text-faint);font-size:10px;font-weight:600;cursor:pointer;transition:color .15s var(--ease)}
+  .bn-item .bn-icon{font-size:19px;line-height:1}
+  .bn-item.active{color:var(--accent)}
+  .main{padding-bottom:64px}
+  .menu-btn{display:none!important}
+}
+
+/* Period as cards */
+.period-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
+.period-cards .tab-btn{background:var(--surface-inset);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;text-align:center;font-size:12px;color:var(--text-dim);font-weight:600;cursor:pointer;transition:all .15s var(--ease);display:flex;flex-direction:column;align-items:center;gap:4px;user-select:none}
+.period-cards .tab-btn .pc-icon{font-size:16px}
+.period-cards .tab-btn.active{background:var(--accent-wash);border-color:var(--accent);color:var(--accent)}
+.period-cards .tab-btn:hover:not(.active){border-color:#3a3a3a;color:var(--text)}
 .period-bar{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:13px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .period-label{font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em}
 .date-input{background:var(--surface-inset);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:12px;outline:none}
@@ -266,6 +301,9 @@ tr:hover td{background:var(--surface-2)}
   .fipe-grid{grid-template-columns:1fr;align-items:stretch}
   .fipe-grid button{width:100%;justify-content:center}
   .socio-split-3{grid-template-columns:1fr}
+  .pc-text{display:none}
+  .veiculos-table-desktop{display:none}
+  .veiculos-cards-mobile{display:flex}
   .custo-row .del-custo{justify-self:end}
   .modal-header,.modal-body,.modal-footer{padding-left:16px;padding-right:16px}
   .btn-sm{padding:8px 12px;min-height:34px}
@@ -352,14 +390,14 @@ tr:hover td{background:var(--surface-2)}
         </div>
         <div class="period-bar">
           <span class="period-label">📅 Período</span>
-          <div class="tabs-bar" style="margin-bottom:0;background:transparent;padding:0">
-            <div class="tab-btn active" onclick="setPeriodo('tudo',this)">Tudo</div>
-            <div class="tab-btn" onclick="setPeriodo('mes',this)">Este mês</div>
-            <div class="tab-btn" onclick="setPeriodo('trim',this)">Trimestre</div>
-            <div class="tab-btn" onclick="setPeriodo('ano',this)">Este ano</div>
-            <div class="tab-btn" onclick="setPeriodo('custom',this)">Personalizado</div>
+          <div class="period-cards" style="flex:1">
+            <div class="tab-btn active" onclick="setPeriodo('tudo',this)"><span class="pc-icon">📋</span>Tudo</div>
+            <div class="tab-btn" onclick="setPeriodo('mes',this)"><span class="pc-icon">📆</span>Este mês</div>
+            <div class="tab-btn" onclick="setPeriodo('trim',this)"><span class="pc-icon">🗓️</span>Trimestre</div>
+            <div class="tab-btn" onclick="setPeriodo('ano',this)"><span class="pc-icon">📅</span>Este ano</div>
+            <div class="tab-btn" onclick="setPeriodo('custom',this)" title="Personalizado"><span class="pc-icon">🗓️</span><span class="pc-text">Personalizado</span></div>
           </div>
-          <div id="custom-dates" style="display:none;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <div id="custom-dates" style="display:none;display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%">
             <div class="date-field"><label>De</label><input type="date" id="filtro-de" class="date-input" onchange="renderDash()"></div>
             <div class="date-field"><label>Até</label><input type="date" id="filtro-ate" class="date-input" onchange="renderDash()"></div>
           </div>
@@ -397,7 +435,8 @@ tr:hover td{background:var(--surface-2)}
               </select>
             </div>
           </div>
-          <div class="table-scroll"><table><thead><tr><th>Veículo</th><th>Ano</th><th>Compra</th><th>Custos</th><th>Investido</th><th>Dias</th><th>Venda</th><th>Lucro</th><th>Margem</th><th>Status</th><th></th></tr></thead><tbody id="veiculos-table"></tbody></table></div>
+          <div class="veiculos-table-desktop table-scroll"><table><thead><tr><th>Veículo</th><th>Ano</th><th>Compra</th><th>Custos</th><th>Investido</th><th>Dias</th><th>Venda</th><th>Lucro</th><th>Margem</th><th>Status</th><th></th></tr></thead><tbody id="veiculos-table"></tbody></table></div>
+          <div class="veiculos-cards-mobile" id="veiculos-cards"></div>
         </div>
       </div>
     </div>
@@ -489,6 +528,14 @@ tr:hover td{background:var(--surface-2)}
     </div>
 
   </div><!-- /main -->
+
+  <nav class="bottom-nav" id="bottom-nav">
+    <div class="bn-item active" data-page="dashboard" onclick="bottomNavGo('dashboard',this)"><span class="bn-icon">🏠</span><span>Início</span></div>
+    <div class="bn-item" data-page="veiculos" onclick="bottomNavGo('veiculos',this)"><span class="bn-icon">🚗</span><span>Veículos</span></div>
+    <div class="bn-item" data-page="checklist" onclick="bottomNavGo('checklist',this)"><span class="bn-icon">☑️</span><span>Checklist</span></div>
+    <div class="bn-item" data-page="receber" onclick="bottomNavGo('receber',this)"><span class="bn-icon">💵</span><span>Receber</span></div>
+    <div class="bn-item" id="bn-mais" onclick="openSB()"><span class="bn-icon">☰</span><span>Mais</span></div>
+  </nav>
 </div><!-- /app -->
 
 <!-- ═══ LOGIN ═══ -->
@@ -856,10 +903,14 @@ async function showPage(p,el){
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(el) el.classList.add('active');
+  document.querySelectorAll('.bn-item').forEach(x=>x.classList.remove('active'));
+  const bn=document.querySelector(`.bn-item[data-page="${p}"]`);
+  if(bn) bn.classList.add('active');
   await loadAll();
   const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas,checklist:renderChecklistPage,receber:renderReceber,promissorias:renderPromissorias};
   if(map[p]) map[p]();
 }
+function bottomNavGo(p,el){ showPage(p,null); }
 
 // ═══ PERÍODO ══════════════════════════════════════════════════
 let periodo='tudo';
@@ -965,6 +1016,44 @@ function renderVeiculos(){
         <button class="btn btn-danger btn-sm" onclick="delVeiculo(${v.id})">🗑</button>
       </div></td></tr>`;
   }).join(''):`<tr><td colspan="11" style="text-align:center;color:#555;padding:24px">Nenhum veículo encontrado.</td></tr>`;
+
+  document.getElementById('veiculos-cards').innerHTML=list.length?list.map(v=>{
+    const{ct,inv,luc,mg,consignado}=calc(v), vend=v.status==='Vendido', d=dias(v);
+    const s=v.tem_socio==='sim'?socio(v.socio_id):null;
+    const badgeClass=v.status==='Disponivel'?'disponivel':v.status==='Vendido'?'vendido':'negociacao';
+    return`<div class="v-card">
+      <div class="v-card-top">
+        <div>
+          <div class="v-card-name">${v.nome}</div>
+          <div class="v-card-sub">${v.ano||'—'}${v.placa?' · '+v.placa:''}</div>
+        </div>
+        <span class="badge badge-${badgeClass}">${v.status}</span>
+      </div>
+      ${consignado?`<span class="tag-s" style="background:#2a2210;color:#FFCC01">📋 Consignado — ${v.consignante_nome||''}</span>`:''}
+      ${s?`<span class="tag-s">🤝 ${s.nome}</span>`:''}
+      ${v.fipe_valor?`<span class="tag-s" style="background:#1a2a1a;color:#3ecf6e">📊 FIPE ${R(v.fipe_valor)}</span>`:''}
+      <div class="v-card-grid">
+        ${vend?`
+          <div class="v-card-field"><div class="vl">Venda</div><div class="vv">${R(v.valor_venda)}</div></div>
+          <div class="v-card-field"><div class="vl">Lucro</div><div class="vv" style="color:${luc>0?'var(--accent)':luc<0?'var(--danger)':'inherit'}">${R(luc)} (${P(mg)})</div></div>
+        `:`
+          <div class="v-card-field"><div class="vl">${consignado?'Mín. Dono':'Compra'}</div><div class="vv">${consignado?R(v.valor_minimo_dono):R(v.valor_compra)}</div></div>
+          <div class="v-card-field"><div class="vl">Investido</div><div class="vv">${consignado?'—':R(inv)}</div></div>
+        `}
+      </div>
+      <div class="v-card-desc">📅 ${v.data_compra?new Date(v.data_compra+'T12:00:00').toLocaleDateString('pt-BR'):'—'} ${!vend&&d!==null?' · ⏱ '+d+' dias em estoque':''} ${v.obs?'<br>'+v.obs:''}</div>
+      <div class="v-card-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openModalVeiculo(${v.id})">✏️ Editar</button>
+        ${!vend?`<button class="btn btn-success btn-sm" onclick="openModalVenda(${v.id})">✅ Vender</button>`:
+          v.cliente_id?`<button class="btn btn-secondary btn-sm" onclick="gerarPromissoria(${v.id})">📄 Promissória</button>`:
+          `<button class="btn btn-secondary btn-sm" onclick="abrirChecklist(${v.id})">☑️ Checklist</button>`}
+      </div>
+      <div class="v-card-actions-row2">
+        <button class="btn btn-secondary btn-sm" onclick="abrirChecklist(${v.id})">☑️ Checklist</button>
+        <button class="btn btn-danger btn-sm" onclick="delVeiculo(${v.id})">🗑 Excluir</button>
+      </div>
+    </div>`;
+  }).join(''):`<div class="empty-state"><div class="icon">🚗</div><p>Nenhum veículo encontrado.</p></div>`;
 }
 
 // ═══ CUSTOS INLINE ════════════════════════════════════════════
