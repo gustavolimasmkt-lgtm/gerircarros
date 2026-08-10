@@ -336,7 +336,7 @@ app.post('/api/veiculos', (req, res) => {
   if (consig && !b.consignante_nome) return err(res, 'Nome do consignante obrigatorio');
   if (consig && !b.valor_minimo_dono) return err(res, 'Valor minimo combinado com o dono obrigatorio');
   if (b.placa && b.placa.trim()) {
-    const dup = db.prepare('SELECT id, nome FROM veiculos WHERE UPPER(REPLACE(placa,"-","")) = UPPER(REPLACE(?,"-",""))').get(b.placa.trim());
+    const dup = db.prepare("SELECT id, nome FROM veiculos WHERE UPPER(REPLACE(placa,'-','')) = UPPER(REPLACE(?,'-',''))").get(b.placa.trim());
     if (dup) return err(res, `Placa já cadastrada no veículo "${dup.nome}" (id ${dup.id}).`);
   }
   const r = db.prepare(`INSERT INTO veiculos
@@ -369,7 +369,7 @@ app.put('/api/veiculos/:id', (req, res) => {
   if (consig && !b.consignante_nome) return err(res, 'Nome do consignante obrigatorio');
   if (consig && !b.valor_minimo_dono) return err(res, 'Valor minimo combinado com o dono obrigatorio');
   if (b.placa && b.placa.trim()) {
-    const dup = db.prepare('SELECT id, nome FROM veiculos WHERE UPPER(REPLACE(placa,"-","")) = UPPER(REPLACE(?,"-","")) AND id != ?').get(b.placa.trim(), req.params.id);
+    const dup = db.prepare("SELECT id, nome FROM veiculos WHERE UPPER(REPLACE(placa,'-','')) = UPPER(REPLACE(?,'-','')) AND id != ?").get(b.placa.trim(), req.params.id);
     if (dup) return err(res, `Placa já cadastrada no veículo "${dup.nome}" (id ${dup.id}).`);
   }
   db.prepare(`UPDATE veiculos SET nome=?,placa=?,ano=?,data_compra=?,valor_compra=?,tem_socio=?,socio_id=?,socio_pct=?,
