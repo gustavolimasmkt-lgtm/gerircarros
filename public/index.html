@@ -76,6 +76,16 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 .btn-purple{background:#211530;color:#c9a3ff;border:1px solid #3d2857}.btn-purple:hover{background:#2a1a3d}
 .btn-sm{padding:6px 11px;font-size:11px}
 
+/* Quick actions */
+.quick-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+@media(min-width:700px){.quick-actions{grid-template-columns:repeat(4,1fr)}}
+.qa-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:16px;cursor:pointer;transition:border-color .15s var(--ease),transform .1s var(--ease);box-shadow:var(--shadow-card)}
+.qa-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.qa-card:active{transform:scale(.98)}
+.qa-icon{font-size:22px;margin-bottom:8px}
+.qa-label{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--text)}
+.qa-sub{font-size:11px;color:var(--text-faint);margin-top:2px}
+
 /* KPI cards */
 .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
 @media(min-width:700px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}
@@ -232,6 +242,21 @@ tr:hover td{background:var(--surface-2)}
   .menu-btn{display:block}.menu-close{display:block}
   .overlay-sb.show{display:block}
   .content{padding:14px}.header{padding:13px 16px}
+  .form-grid{grid-template-columns:1fr}
+  .form-group input,.form-group select,.form-group textarea{font-size:16px}
+  .custo-row{grid-template-columns:1fr;gap:6px}
+  .custo-row .del-custo{justify-self:end}
+  .modal-header,.modal-body,.modal-footer{padding-left:16px;padding-right:16px}
+  .btn-sm{padding:8px 12px;min-height:34px}
+  th,td{padding:9px 10px;font-size:12px}
+  .kpi-value{font-size:18px}
+  .socios-grid{grid-template-columns:1fr}
+  .qa-icon{font-size:19px}.qa-label{font-size:12px}
+}
+@media(max-width:420px){
+  .quick-actions{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi-grid{gap:8px}
+  .header h2{font-size:15px}
 }
 
 </style>
@@ -253,6 +278,8 @@ tr:hover td{background:var(--surface-2)}
       <div class="nav-item" onclick="showPage('simulador',this)"><span class="icon">🧮</span> Simulador</div>
       <div class="nav-item" onclick="showPage('relatorio',this)"><span class="icon">📈</span> Relatório</div>
       <div class="nav-section">Operação</div>
+      <div class="nav-item" onclick="showPage('checklist',this)"><span class="icon">☑️</span> Checklist</div>
+      <div class="nav-item" onclick="showPage('receber',this)"><span class="icon">💵</span> Contas a Receber</div>
       <div class="nav-item" onclick="showPage('alertas',this)"><span class="icon">⏰</span> Alertas</div>
       <div class="nav-section">Pessoas</div>
       <div class="nav-item" onclick="showPage('clientes',this)"><span class="icon">📇</span> Clientes</div>
@@ -260,6 +287,7 @@ tr:hover td{background:var(--surface-2)}
       <div class="nav-item" onclick="showPage('acerto',this)"><span class="icon">💰</span> Acerto</div>
       <div class="nav-section" id="nav-user-section" style="margin-top:auto"></div>
       <div class="nav-item" onclick="openModalNovoUsuario()"><span class="icon">➕</span> Cadastrar usuário</div>
+      <div class="nav-item" onclick="regenerarMeuCodigo()"><span class="icon">🔑</span> Meu código de recuperação</div>
       <div class="nav-item" onclick="doLogout()"><span class="icon">🚪</span> Sair</div>
     </nav>
   </aside>
@@ -273,6 +301,28 @@ tr:hover td{background:var(--surface-2)}
         <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Dashboard</h2><div class="header-sub" id="dash-sub">Todos os períodos</div></div></div>
       </div>
       <div class="content">
+        <div class="quick-actions">
+          <div class="qa-card" onclick="openModalVeiculo()">
+            <div class="qa-icon">🚗</div>
+            <div class="qa-label">Cadastrar Veículo</div>
+            <div class="qa-sub">Novo carro/moto</div>
+          </div>
+          <div class="qa-card" onclick="showPage('clientes',document.querySelector('.nav-item[onclick*=clientes]'))">
+            <div class="qa-icon">📇</div>
+            <div class="qa-label">Novo Cliente</div>
+            <div class="qa-sub">Cadastrar</div>
+          </div>
+          <div class="qa-card" onclick="abrirVendaRapida()">
+            <div class="qa-icon">✅</div>
+            <div class="qa-label">Registrar Venda</div>
+            <div class="qa-sub">Nova venda</div>
+          </div>
+          <div class="qa-card" onclick="showPage('socios',document.querySelector('.nav-item[onclick*=socios]'))">
+            <div class="qa-icon">🤝</div>
+            <div class="qa-label">Novo Sócio</div>
+            <div class="qa-sub">Cadastrar</div>
+          </div>
+        </div>
         <div class="period-bar">
           <span class="period-label">📅 Período</span>
           <div class="tabs-bar" style="margin-bottom:0;background:transparent;padding:0">
@@ -386,6 +436,21 @@ tr:hover td{background:var(--surface-2)}
       <div class="content" id="alertas-content"></div>
     </div>
 
+    <div id="page-checklist" class="page">
+      <div class="header"><div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Checklist</h2><div class="header-sub">Gerencie as tarefas de cada veículo</div></div></div></div>
+      <div class="content">
+        <div class="search-bar" style="max-width:340px;margin-bottom:16px">
+          <input type="text" id="ck-search" placeholder="Buscar por modelo, ano ou placa..." oninput="renderChecklistPage()">
+        </div>
+        <div id="checklist-content"></div>
+      </div>
+    </div>
+
+    <div id="page-receber" class="page">
+      <div class="header"><div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Contas a Receber</h2><div class="header-sub">Parcelas de vendas financiadas</div></div></div></div>
+      <div class="content" id="receber-content"></div>
+    </div>
+
   </div><!-- /main -->
 </div><!-- /app -->
 
@@ -399,7 +464,35 @@ tr:hover td{background:var(--surface-2)}
     <input id="lg-nome" type="text" placeholder="Nome (só no cadastro)" style="display:none;width:100%;margin-bottom:10px;padding:10px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:8px;color:#fff">
     <div id="lg-erro" style="color:#ff6b6b;font-size:12px;min-height:16px;margin-bottom:8px"></div>
     <button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="doAuth()" id="lg-btn">Entrar</button>
-    <div style="text-align:center;font-size:12px;color:#888;cursor:pointer" onclick="toggleAuthMode()" id="lg-toggle">Não tem conta? Cadastre-se</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:#888">
+      <span style="cursor:pointer" onclick="toggleAuthMode()" id="lg-toggle">Não tem conta? Cadastre-se</span>
+      <span style="cursor:pointer;text-decoration:underline" onclick="abrirRecuperacao()">Esqueci a senha</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TELA CÓDIGO DE RECUPERAÇÃO (mostrado 1x após cadastro) ═══ -->
+<div id="tela-recovery-code" style="display:none;position:fixed;inset:0;background:#0d0d0dee;z-index:10000;align-items:center;justify-content:center;flex-direction:column;font-family:inherit;padding:20px">
+  <div style="width:340px;background:#161616;border:1px solid #FFCC01;border-radius:12px;padding:28px;text-align:center">
+    <div style="font-size:28px;margin-bottom:8px">🔑</div>
+    <h3 style="color:#FFCC01;margin-bottom:6px">Guarde seu código de recuperação</h3>
+    <div style="color:#888;font-size:12px;margin-bottom:16px">Se você esquecer sua senha, esse código é a única forma de recuperar o acesso. Não existe recuperação por e-mail. Tire print ou anote agora.</div>
+    <div id="recovery-code-display" style="background:#0d0d0d;border:1px dashed #FFCC01;border-radius:8px;padding:14px;color:#FFCC01;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:16px"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="confirmarRecoveryCode()">Já anotei, continuar</button>
+  </div>
+</div>
+
+<!-- ═══ TELA RECUPERAR SENHA ═══ -->
+<div id="tela-recuperar" style="display:none;position:fixed;inset:0;background:#0d0d0d;z-index:9999;align-items:center;justify-content:center;flex-direction:column;font-family:inherit">
+  <div style="width:320px;background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:28px">
+    <h2 style="margin:0 0 4px;color:#FFCC01">Recuperar senha</h2>
+    <div style="color:#888;font-size:13px;margin-bottom:20px">Informe seu e-mail, o código de recuperação e a nova senha</div>
+    <input id="rc-email" type="email" placeholder="Email" style="width:100%;margin-bottom:10px;padding:10px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:8px;color:#fff">
+    <input id="rc-codigo" type="text" placeholder="Código de recuperação (ex: A1B2-C3D4-E5F6)" style="width:100%;margin-bottom:10px;padding:10px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:8px;color:#fff">
+    <input id="rc-senha" type="password" placeholder="Nova senha" style="width:100%;margin-bottom:6px;padding:10px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:8px;color:#fff">
+    <div id="rc-erro" style="color:#ff6b6b;font-size:12px;min-height:16px;margin-bottom:8px"></div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="doRecuperarSenha()">Trocar senha</button>
+    <div style="text-align:center;font-size:12px;color:#888;cursor:pointer;text-decoration:underline" onclick="fecharRecuperacao()">Voltar pro login</div>
   </div>
 </div>
 
@@ -659,7 +752,7 @@ tr:hover td{background:var(--surface-2)}
 
 <script>
 // ═══ STATE ═══════════════════════════════════════════════════
-let V=[], C=[], S=[], CL=[], user=null;
+let V=[], C=[], S=[], CL=[], PARC=[], user=null;
 let editVid=null, editSid=null, editCid=null, vendaVid=null, simMode='proposta';
 let mCustos=[], importRows=[];
 
@@ -675,7 +768,7 @@ const GET=p=>req('GET',p);
 const POST=(p,b)=>req('POST',p,b);
 const PUT=(p,b)=>req('PUT',p,b);
 const DEL=p=>req('DELETE',p);
-async function loadAll(){ [V,C,S,CL]=await Promise.all([GET('/veiculos'),GET('/custos'),GET('/socios'),GET('/clientes')]); }
+async function loadAll(){ [V,C,S,CL,PARC]=await Promise.all([GET('/veiculos'),GET('/custos'),GET('/socios'),GET('/clientes'),GET('/parcelas')]); }
 
 // ═══ HELPERS ═════════════════════════════════════════════════
 const R=n=>n==null?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
@@ -726,7 +819,7 @@ async function showPage(p,el){
   document.getElementById('page-'+p).classList.add('active');
   if(el) el.classList.add('active');
   await loadAll();
-  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas};
+  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas,checklist:renderChecklistPage,receber:renderReceber};
   if(map[p]) map[p]();
 }
 
@@ -943,6 +1036,19 @@ function toggleAquisicao(){
   document.getElementById('v-compra-fields').style.display=consig?'none':'contents';
   document.getElementById('v-consig-fields').style.display=consig?'contents':'none';
   updateResumo();
+}
+
+// ═══ AÇÃO RÁPIDA: REGISTRAR VENDA ═══════════════════════════
+function abrirVendaRapida(){
+  const disponiveis=V.filter(v=>v.status!=='Vendido');
+  if(!disponiveis.length){alert('Nenhum veículo disponível pra vender. Cadastre um veículo primeiro.');return;}
+  if(disponiveis.length===1){openModalVenda(disponiveis[0].id);return;}
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <select id="qa-venda-veiculo">${disponiveis.map(v=>`<option value="${v.id}">${v.nome}${v.ano?' ('+v.ano+')':''}</option>`).join('')}</select>
+      <button class="btn btn-primary" onclick="closeModal('modal-generico');openModalVenda(parseInt(document.getElementById('qa-venda-veiculo').value))">Continuar</button>
+    </div>`;
+  abrirModalGenerico('Qual veículo foi vendido?', html);
 }
 
 // ═══ FIPE ═══════════════════════════════════════════════════
@@ -1701,16 +1807,62 @@ async function doAuth(){
   try{
     if(authMode==='registrar'){
       if(!nome){erroEl.textContent='Informe seu nome.';return;}
-      await POST('/auth/registrar',{nome,email,senha});
+      const novo=await POST('/auth/registrar',{nome,email,senha});
+      pendingLogin={email,senha};
+      mostrarRecoveryCode(novo.recoveryCode);
+      return;
     }
     user=await POST('/auth/login',{email,senha});
     hideLogin();
     await loadAll(); renderDash();
   }catch(e){ erroEl.textContent=e.message; }
 }
+let pendingLogin=null;
+function mostrarRecoveryCode(codigo){
+  document.getElementById('recovery-code-display').textContent=codigo;
+  document.getElementById('tela-recovery-code').style.display='flex';
+}
+async function confirmarRecoveryCode(){
+  document.getElementById('tela-recovery-code').style.display='none';
+  if(pendingLogin){
+    try{
+      user=await POST('/auth/login',pendingLogin);
+      pendingLogin=null;
+      hideLogin();
+      await loadAll(); renderDash();
+    }catch(e){ showLogin(); document.getElementById('lg-erro').textContent=e.message; }
+  }
+}
+function abrirRecuperacao(){
+  document.getElementById('tela-login').style.display='none';
+  document.getElementById('tela-recuperar').style.display='flex';
+}
+function fecharRecuperacao(){
+  document.getElementById('tela-recuperar').style.display='none';
+  document.getElementById('tela-login').style.display='flex';
+}
+async function doRecuperarSenha(){
+  const email=document.getElementById('rc-email').value.trim();
+  const codigo=document.getElementById('rc-codigo').value.trim();
+  const novaSenha=document.getElementById('rc-senha').value;
+  const erroEl=document.getElementById('rc-erro');
+  erroEl.textContent='';
+  try{
+    const r=await POST('/auth/recuperar-senha',{email,codigo,novaSenha});
+    document.getElementById('tela-recuperar').style.display='none';
+    mostrarRecoveryCode(r.novoCodigo);
+    pendingLogin={email,senha:novaSenha};
+    alert('Senha alterada! Guarde o novo código de recuperação (o antigo não vale mais).');
+  }catch(e){ erroEl.textContent=e.message; }
+}
 async function doLogout(){
   try{ await POST('/auth/logout'); }catch(e){}
   location.reload();
+}
+async function regenerarMeuCodigo(){
+  if(!confirm('Isso invalida seu código de recuperação atual e gera um novo. Continuar?')) return;
+  const r=await POST('/auth/gerar-codigo-recuperacao');
+  alert('Seu novo código de recuperação (guarde bem, o anterior não vale mais):\n\n'+r.novoCodigo);
 }
 async function checkAuth(){
   try{
@@ -1745,6 +1897,55 @@ async function renderAlertas(){
     <tbody>${alertas.map(a=>`<tr><td>${a.nome}</td><td>${a.data_gravacao}</td><td class="dias-danger">🔴 ${a.dias}d</td><td>${a.status}</td></tr>`).join('')}</tbody></table></div>`;
 }
 
+// ═══ CHECKLIST (página) ══════════════════════════════════════
+function renderChecklistPage(){
+  const q=(document.getElementById('ck-search')?.value||'').toLowerCase();
+  let lista=V.filter(v=>v.status!=='Vendido');
+  if(q) lista=lista.filter(v=>v.nome.toLowerCase().includes(q)||(v.placa||'').toLowerCase().includes(q)||String(v.ano||'').includes(q));
+  const el=document.getElementById('checklist-content');
+  if(!lista.length){ el.innerHTML='<div class="empty-state"><div class="icon">☑️</div><p>Nenhum veículo encontrado.</p></div>'; return; }
+  el.innerHTML=`<div class="socios-grid">${lista.map(v=>`
+    <div class="socio-card">
+      <div class="sc-name">${v.nome}</div>
+      <div class="sc-info">${v.ano||'—'}${v.placa?' · '+v.placa:''}</div>
+      <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center" onclick="abrirChecklist(${v.id})">☑️ Ver Checklist</button>
+    </div>`).join('')}</div>`;
+}
+
+// ═══ CONTAS A RECEBER ════════════════════════════════════════
+async function renderReceber(){
+  const el=document.getElementById('receber-content');
+  if(!PARC.length){ el.innerHTML='<div class="empty-state"><div class="icon">💵</div><p>Nenhuma parcela pendente. Vendas à vista não geram parcela.</p></div>'; return; }
+  const hoje=new Date().toISOString().slice(0,10);
+  const pendentes=PARC.filter(p=>!p.pago), pagas=PARC.filter(p=>p.pago);
+  const atrasadas=pendentes.filter(p=>p.vencimento<hoje);
+  const totalPendente=pendentes.reduce((t,p)=>t+p.valor,0);
+  el.innerHTML=`
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">A Receber</div><div class="kpi-value">${R(totalPendente)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Parcelas Pendentes</div><div class="kpi-value">${pendentes.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Atrasadas</div><div class="kpi-value" style="color:${atrasadas.length?'#ff6b6b':'#fff'}">${atrasadas.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Já Recebidas</div><div class="kpi-value">${pagas.length}</div></div>
+    </div>
+    <div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Vencimento</th><th>Veículo</th><th>Cliente</th><th>Parcela</th><th style="text-align:right">Valor</th><th>Status</th><th></th></tr></thead>
+    <tbody>${[...pendentes,...pagas].sort((a,b)=>a.vencimento.localeCompare(b.vencimento)).map(p=>{
+      const atrasada=!p.pago&&p.vencimento<hoje;
+      return`<tr>
+        <td>${new Date(p.vencimento+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+        <td>${p.veiculo_nome}</td>
+        <td>${p.cliente_nome||'—'}${p.cliente_telefone?'<br><span style="color:#666;font-size:11px">'+p.cliente_telefone+'</span>':''}</td>
+        <td>${p.numero}</td>
+        <td class="money" style="text-align:right">${R(p.valor)}</td>
+        <td>${p.pago?`<span class="badge badge-disponivel">Recebida</span>`:atrasada?`<span class="badge" style="background:var(--danger-bg);color:var(--danger)">Atrasada</span>`:`<span class="badge badge-negociacao">Pendente</span>`}</td>
+        <td>${!p.pago?`<button class="btn btn-success btn-sm" onclick="marcarParcelaPaga(${p.id})">✅ Marcar paga</button>`:''}</td>
+      </tr>`;
+    }).join('')}</tbody></table></div></div>`;
+}
+async function marcarParcelaPaga(id){
+  await PUT('/parcelas/'+id,{pago:true});
+  await loadAll(); renderReceber();
+}
+
 // ═══ CADASTRAR USUÁRIO (só logado) ═════════════════════════════
 function openModalNovoUsuario(){
   const html=`
@@ -1765,9 +1966,9 @@ async function salvarNovoUsuario(){
   erroEl.textContent='';
   if(!nome||!email||!senha){erroEl.textContent='Preencha todos os campos.';return;}
   try{
-    await POST('/auth/registrar',{nome,email,senha});
+    const novo=await POST('/auth/registrar',{nome,email,senha});
     closeModal('modal-generico');
-    alert('Usuário cadastrado. Ele já pode fazer login com o email e senha informados.');
+    alert(`Usuário cadastrado. Ele já pode fazer login com o email e senha informados.\n\nCÓDIGO DE RECUPERAÇÃO DELE (repasse pra essa pessoa, é a única forma de recuperar a senha):\n${novo.recoveryCode}`);
   }catch(e){erroEl.textContent=e.message;}
 }
 
