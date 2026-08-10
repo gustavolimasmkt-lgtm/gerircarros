@@ -212,6 +212,7 @@ tr:hover td{background:#222}
       <div class="nav-section">Operação</div>
       <div class="nav-item" onclick="showPage('alertas',this)"><span class="icon">⏰</span> Alertas</div>
       <div class="nav-section">Pessoas</div>
+      <div class="nav-item" onclick="showPage('clientes',this)"><span class="icon">📇</span> Clientes</div>
       <div class="nav-item" onclick="showPage('socios',this)"><span class="icon">🤝</span> Sócios</div>
       <div class="nav-item" onclick="showPage('acerto',this)"><span class="icon">💰</span> Acerto</div>
       <div class="nav-section" id="nav-user-section" style="margin-top:auto"></div>
@@ -314,6 +315,14 @@ tr:hover td{background:#222}
     </div>
 
     <!-- SÓCIOS -->
+    <div id="page-clientes" class="page">
+      <div class="header">
+        <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Clientes</h2><div class="header-sub">Pessoas que compraram ou negociam com você</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openModalCliente()">+ Novo Cliente</button>
+      </div>
+      <div class="content" id="clientes-content"></div>
+    </div>
+
     <div id="page-socios" class="page">
       <div class="header">
         <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Sócios</h2><div class="header-sub">Parceiros de negócio</div></div></div>
@@ -375,6 +384,11 @@ tr:hover td{background:#222}
           <div class="form-group"><label>Contato do Consignante</label><input type="text" id="v-consignante-contato" placeholder="WhatsApp/telefone"></div>
           <div class="form-group full"><label>Valor Mínimo Combinado com o Dono (R$) *</label><input type="number" id="v-valor-minimo-dono" placeholder="0" oninput="updateResumo()"></div>
         </div>
+        <hr class="sec-div"><div class="sec-lbl">🚘 Detalhes</div>
+        <div class="form-group"><label>Cor</label><input type="text" id="v-cor" placeholder="Prata, Preto..."></div>
+        <div class="form-group"><label>Quilometragem</label><input type="number" id="v-km" placeholder="50000"></div>
+        <div class="form-group"><label>Chassi</label><input type="text" id="v-chassi" placeholder="Número do chassi"></div>
+        <div class="form-group"><label>Preço Pretendido (R$)</label><input type="number" id="v-preco-pretendido" placeholder="0"></div>
         <hr class="sec-div"><div class="sec-lbl">🤝 Parceria</div>
         <div class="form-group">
           <label>Tem Sócio?</label>
@@ -446,6 +460,29 @@ tr:hover td{background:#222}
 </div>
 
 <!-- ═══ MODAL SÓCIO ═══ -->
+<div class="modal-overlay" id="modal-cliente" style="display:none" onclick="if(event.target===this)closeModal('modal-cliente')">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header"><h3 id="mc-title">+ Novo Cliente</h3><button class="close-btn" onclick="closeModal('modal-cliente')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Tipo</label>
+          <select id="c-tipo"><option value="cliente">Cliente</option><option value="fornecedor">Fornecedor</option><option value="outro">Outro</option></select>
+        </div>
+        <div class="form-group full"><label>Nome Completo *</label><input type="text" id="c-nome" placeholder="João da Silva"></div>
+        <div class="form-group"><label>Telefone</label><input type="text" id="c-tel" placeholder="(48) 9 9999-9999"></div>
+        <div class="form-group"><label>E-mail</label><input type="text" id="c-email" placeholder="joao@email.com"></div>
+        <div class="form-group full"><label>CPF / CNPJ</label><input type="text" id="c-cpf" placeholder="000.000.000-00"></div>
+        <div class="form-group full"><label>Endereço</label><input type="text" id="c-endereco" placeholder="Rua das Flores, 123 - Centro"></div>
+        <div class="form-group full"><label>Observações</label><textarea id="c-obs" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCliente()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-socio" style="display:none" onclick="if(event.target===this)closeModal('modal-socio')">
   <div class="modal" style="max-width:500px">
     <div class="modal-header"><h3 id="ms-title">+ Novo Sócio</h3><button class="close-btn" onclick="closeModal('modal-socio')">✕</button></div>
@@ -476,6 +513,21 @@ tr:hover td{background:#222}
         <div class="form-group"><label>Valor de Venda (R$)</label><input type="number" id="vd-valor" oninput="calcVenda()" placeholder="0"></div>
         <div class="form-group"><label>Carro Troca (R$)</label><input type="number" id="vd-troca" oninput="calcVenda()" placeholder="0" value="0"></div>
         <div class="form-group"><label>Data da Venda</label><input type="date" id="vd-data"></div>
+        <div class="form-group"><label>Cliente</label>
+          <select id="vd-cliente"><option value="">— Não vincular —</option></select>
+        </div>
+        <hr class="sec-div"><div class="sec-lbl">💳 Pagamento</div>
+        <div class="form-group"><label>Forma de Pagamento</label>
+          <select id="vd-forma">
+            <option value="avista">À vista</option>
+            <option value="financiado">Financiado (banco)</option>
+            <option value="parcelado_proprio">Parcelado direto (promissória)</option>
+            <option value="troca">Troca</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Entrada (R$)</label><input type="number" id="vd-entrada" placeholder="0"></div>
+        <div class="form-group"><label>Parcelas</label><input type="number" id="vd-parcelas" placeholder="1" min="1"></div>
+        <div class="form-group"><label>Taxa/Comissão (R$)</label><input type="number" id="vd-comissao" placeholder="0"></div>
         <div class="form-group full">
           <div class="sim-result" id="venda-preview"><div style="text-align:center;color:#555;padding:10px">Informe o valor de venda</div></div>
         </div>
@@ -564,8 +616,8 @@ tr:hover td{background:#222}
 
 <script>
 // ═══ STATE ═══════════════════════════════════════════════════
-let V=[], C=[], S=[], user=null;
-let editVid=null, editSid=null, vendaVid=null, simMode='proposta';
+let V=[], C=[], S=[], CL=[], user=null;
+let editVid=null, editSid=null, editCid=null, vendaVid=null, simMode='proposta';
 let mCustos=[], importRows=[];
 
 // ═══ API ═════════════════════════════════════════════════════
@@ -580,7 +632,7 @@ const GET=p=>req('GET',p);
 const POST=(p,b)=>req('POST',p,b);
 const PUT=(p,b)=>req('PUT',p,b);
 const DEL=p=>req('DELETE',p);
-async function loadAll(){ [V,C,S]=await Promise.all([GET('/veiculos'),GET('/custos'),GET('/socios')]); }
+async function loadAll(){ [V,C,S,CL]=await Promise.all([GET('/veiculos'),GET('/custos'),GET('/socios'),GET('/clientes')]); }
 
 // ═══ HELPERS ═════════════════════════════════════════════════
 const R=n=>n==null?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
@@ -631,7 +683,7 @@ async function showPage(p,el){
   document.getElementById('page-'+p).classList.add('active');
   if(el) el.classList.add('active');
   await loadAll();
-  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas};
+  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas};
   if(map[p]) map[p]();
 }
 
@@ -733,6 +785,8 @@ function renderVeiculos(){
       <td><span class="badge badge-${v.status==='Disponivel'?'disponivel':v.status==='Vendido'?'vendido':'negociacao'}">${v.status}</span></td>
       <td><div style="display:flex;gap:4px">
         ${!vend?`<button class="btn btn-success btn-sm" onclick="openModalVenda(${v.id})">✅</button>`:''}
+        <button class="btn btn-secondary btn-sm" onclick="abrirChecklist(${v.id})" title="Checklist">☑️</button>
+        ${vend&&v.cliente_id?`<button class="btn btn-secondary btn-sm" onclick="gerarPromissoria(${v.id})" title="Nota Promissória">📄</button>`:''}
         <button class="btn btn-secondary btn-sm" onclick="openModalVeiculo(${v.id})">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="delVeiculo(${v.id})">🗑</button>
       </div></td></tr>`;
@@ -787,7 +841,7 @@ function openModalVeiculo(id){
   editVid=id||null;
   document.getElementById('mv-title').textContent=id?'✏️ Editar Veículo':'+ Novo Veículo';
   document.getElementById('v-socio-id').innerHTML='<option value="">-- Selecione --</option>'+S.map(s=>`<option value="${s.id}">${s.nome}</option>`).join('');
-  ['v-nome','v-placa','v-ano','v-data-compra','v-valor-compra','v-socio-pct','v-data-venda','v-valor-venda','v-troca','v-obs','v-consignante-nome','v-consignante-contato','v-valor-minimo-dono'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['v-nome','v-placa','v-ano','v-data-compra','v-valor-compra','v-socio-pct','v-data-venda','v-valor-venda','v-troca','v-obs','v-consignante-nome','v-consignante-contato','v-valor-minimo-dono','v-cor','v-km','v-chassi','v-preco-pretendido'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('v-tem-socio').value='nao';
   document.getElementById('v-status').value='Disponivel';
   document.getElementById('v-tipo-aquisicao').value='compra';
@@ -804,6 +858,10 @@ function openModalVeiculo(id){
     document.getElementById('v-consignante-nome').value=v.consignante_nome||'';
     document.getElementById('v-consignante-contato').value=v.consignante_contato||'';
     document.getElementById('v-valor-minimo-dono').value=v.valor_minimo_dono||'';
+    document.getElementById('v-cor').value=v.cor||'';
+    document.getElementById('v-km').value=v.km||'';
+    document.getElementById('v-chassi').value=v.chassi||'';
+    document.getElementById('v-preco-pretendido').value=v.preco_pretendido||'';
     document.getElementById('v-tem-socio').value=v.tem_socio||'nao';
     document.getElementById('v-socio-id').value=v.socio_id||'';
     document.getElementById('v-socio-pct').value=v.socio_pct||'';
@@ -952,6 +1010,8 @@ async function saveVeiculo(){
     tipo_aquisicao:tipoAq, consignante_nome:consig?consignanteNome:null,
     consignante_contato:consig?document.getElementById('v-consignante-contato').value.trim():null,
     valor_minimo_dono:consig?valorMinimo:null,
+    cor:document.getElementById('v-cor').value, km:parseInt(document.getElementById('v-km').value)||null,
+    chassi:document.getElementById('v-chassi').value, preco_pretendido:parseFloat(document.getElementById('v-preco-pretendido').value)||null,
     socio_id:ts==='sim'?parseInt(document.getElementById('v-socio-id').value)||null:null,
     socio_pct:parseFloat(document.getElementById('v-socio-pct').value)||0,
     status:document.getElementById('v-status').value, data_venda:document.getElementById('v-data-venda').value,
@@ -999,6 +1059,158 @@ async function saveSocio(){
 async function delSocio(id){
   try{await DEL('/socios/'+id); await loadAll(); renderSocios();}catch(e){alert(e.message);}
 }
+
+// ═══ MODAL CLIENTE ════════════════════════════════════════════
+function openModalCliente(id){
+  editCid=id||null;
+  document.getElementById('mc-title').textContent=id?'✏️ Editar Cliente':'+ Novo Cliente';
+  ['c-nome','c-tel','c-email','c-cpf','c-endereco','c-obs'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('c-tipo').value='cliente';
+  if(id){
+    const c=CL.find(x=>x.id==id); if(!c) return;
+    document.getElementById('c-tipo').value=c.tipo||'cliente';
+    document.getElementById('c-nome').value=c.nome;
+    document.getElementById('c-tel').value=c.telefone||'';
+    document.getElementById('c-email').value=c.email||'';
+    document.getElementById('c-cpf').value=c.cpf_cnpj||'';
+    document.getElementById('c-endereco').value=c.endereco||'';
+    document.getElementById('c-obs').value=c.obs||'';
+  }
+  document.getElementById('modal-cliente').style.display='flex';
+}
+async function saveCliente(){
+  const nome=document.getElementById('c-nome').value.trim();
+  if(!nome){alert('Informe o nome.');return;}
+  const body={tipo:document.getElementById('c-tipo').value, nome,
+    telefone:document.getElementById('c-tel').value, email:document.getElementById('c-email').value,
+    cpf_cnpj:document.getElementById('c-cpf').value, endereco:document.getElementById('c-endereco').value,
+    obs:document.getElementById('c-obs').value};
+  try{
+    if(editCid) await PUT('/clientes/'+editCid,body); else await POST('/clientes',body);
+    await loadAll(); closeModal('modal-cliente'); renderClientes();
+  }catch(e){alert(e.message);}
+}
+async function delCliente(id){
+  if(!confirm('Excluir este cliente?')) return;
+  try{await DEL('/clientes/'+id); await loadAll(); renderClientes();}catch(e){alert(e.message);}
+}
+function renderClientes(){
+  if(!CL.length){
+    document.getElementById('clientes-content').innerHTML=`<div class="empty-state"><div class="icon">📇</div><p>Nenhum cliente cadastrado.<br><br><button class="btn btn-primary" onclick="openModalCliente()">+ Cadastrar</button></p></div>`;
+    return;
+  }
+  document.getElementById('clientes-content').innerHTML=`<div class="socios-grid">${CL.map(c=>{
+    const carros=V.filter(v=>v.cliente_id==c.id);
+    return`<div class="socio-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="avatar" style="background:${avatar(c.nome)}">${ini(c.nome)}</div>
+        <div><div class="sc-name">${c.nome}</div><div class="sc-info">${c.telefone||'Sem telefone'}</div></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+        <span class="info-chip">${c.tipo==='cliente'?'🧑 Cliente':c.tipo==='fornecedor'?'📦 Fornecedor':'👤 Outro'}</span>
+        ${c.cpf_cnpj?`<span class="info-chip">📄 ${c.cpf_cnpj}</span>`:''}
+      </div>
+      <div class="sc-stats">
+        <div class="sc-stat"><div class="sc-sl">Veículos</div><div class="sc-sv">${carros.length}</div></div>
+        <div class="sc-stat"><div class="sc-sl">E-mail</div><div class="sc-sv" style="font-size:11px">${c.email||'—'}</div></div>
+      </div>
+      <div class="sc-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openModalCliente(${c.id})">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delCliente(${c.id})">🗑</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ═══ CHECKLIST POR VEÍCULO ═══════════════════════════════════
+let checklistVid=null;
+async function abrirChecklist(vid){
+  checklistVid=vid;
+  const v=V.find(x=>x.id==vid);
+  const itens=await GET(`/veiculos/${vid}/checklist`);
+  const html=`
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input id="ck-novo" type="text" placeholder="Adicionar tarefa..." style="flex:1" onkeydown="if(event.key==='Enter')addChecklistItem()">
+      <button class="btn btn-primary btn-sm" onclick="addChecklistItem()">+</button>
+    </div>
+    <div id="ck-lista">${renderChecklistItens(itens)}</div>`;
+  abrirModalGenerico('Checklist — '+(v?v.nome:''), html);
+}
+function renderChecklistItens(itens){
+  if(!itens.length) return '<p style="color:#666;font-size:13px">Nenhuma tarefa ainda.</p>';
+  return itens.map(i=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a2a2a">
+      <input type="checkbox" ${i.concluido?'checked':''} onchange="toggleChecklistItem(${i.id},this.checked)">
+      <span style="flex:1;${i.concluido?'text-decoration:line-through;color:#666':''}">${i.texto}</span>
+      <button class="del-custo" onclick="delChecklistItem(${i.id})">×</button>
+    </div>`).join('');
+}
+async function addChecklistItem(){
+  const input=document.getElementById('ck-novo');
+  const texto=input.value.trim();
+  if(!texto) return;
+  await POST(`/veiculos/${checklistVid}/checklist`,{texto});
+  input.value='';
+  const itens=await GET(`/veiculos/${checklistVid}/checklist`);
+  document.getElementById('ck-lista').innerHTML=renderChecklistItens(itens);
+}
+async function toggleChecklistItem(id,concluido){
+  await PUT('/checklist/'+id,{concluido});
+  const itens=await GET(`/veiculos/${checklistVid}/checklist`);
+  document.getElementById('ck-lista').innerHTML=renderChecklistItens(itens);
+}
+async function delChecklistItem(id){
+  await DEL('/checklist/'+id);
+  const itens=await GET(`/veiculos/${checklistVid}/checklist`);
+  document.getElementById('ck-lista').innerHTML=renderChecklistItens(itens);
+}
+
+// ═══ NOTA PROMISSÓRIA ════════════════════════════════════════
+function gerarPromissoria(vid){
+  const v=V.find(x=>x.id==vid);
+  if(!v){alert('Veículo não encontrado.');return;}
+  if(!v.cliente_id){alert('Esse carro não tem cliente vinculado à venda. Edite a venda e selecione o cliente primeiro.');return;}
+  const cli=CL.find(x=>x.id==v.cliente_id);
+  const parcelas=v.parcelas||1;
+  const valorTotal=(v.valor_venda||0)-(v.entrada||0);
+  const valorParcela=parcelas>0?valorTotal/parcelas:valorTotal;
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const w=window.open('','_blank');
+  w.document.write(`
+    <html><head><title>Nota Promissória - ${cli?cli.nome:''}</title>
+    <style>
+      body{font-family:Georgia,serif;max-width:700px;margin:40px auto;color:#111;line-height:1.7}
+      .nota{border:2px solid #333;padding:30px;margin-bottom:30px;page-break-after:always}
+      h1{font-size:20px;text-align:center;letter-spacing:2px}
+      .valor{font-size:28px;text-align:center;margin:20px 0;font-weight:bold}
+      .linha{margin:14px 0}
+      .assinatura{margin-top:60px;border-top:1px solid #333;width:300px;text-align:center;padding-top:6px}
+      @media print{ .no-print{display:none} }
+    </style></head><body>
+    <div class="no-print" style="text-align:center;margin-bottom:20px">
+      <button onclick="window.print()" style="padding:10px 20px;font-size:14px">🖨️ Imprimir / Salvar PDF</button>
+    </div>
+    ${Array.from({length:parcelas}).map((_,i)=>{
+      const venc=new Date(); venc.setMonth(venc.getMonth()+i+1);
+      return `<div class="nota">
+        <h1>NOTA PROMISSÓRIA</h1>
+        <div style="text-align:right">Nº ${i+1}/${parcelas}</div>
+        <div class="valor">${R(valorParcela)}</div>
+        <div class="linha">Vencimento: <strong>${venc.toLocaleDateString('pt-BR')}</strong></div>
+        <div class="linha">Aos ${venc.toLocaleDateString('pt-BR')}, pagarei por esta única via de NOTA PROMISSÓRIA
+        a GreenCar, ou à sua ordem, a quantia de <strong>${R(valorParcela)}</strong>,
+        em pagamento referente à aquisição do veículo <strong>${v.nome}</strong>
+        (placa ${v.placa||'não informada'}), pagável nesta praça.</div>
+        <div class="linha">Emitente: <strong>${cli?cli.nome:''}</strong></div>
+        <div class="linha">CPF/CNPJ: ${cli?cli.cpf_cnpj||'—':''}</div>
+        <div class="linha">Endereço: ${cli?cli.endereco||'—':''}</div>
+        <div class="linha">Emitida em: ${hoje}</div>
+        <div class="assinatura">Assinatura do Emitente</div>
+      </div>`;
+    }).join('')}
+    </body></html>`);
+  w.document.close();
+}
 function renderSocios(){
   if(!S.length){
     document.getElementById('socios-content').innerHTML=`<div class="empty-state"><div class="icon">🤝</div><p>Nenhum sócio.<br><br><button class="btn btn-primary" onclick="openModalSocio()">+ Cadastrar</button></p></div>`;
@@ -1036,6 +1248,12 @@ function openModalVenda(id){
   document.getElementById('vd-valor').value=v.valor_venda>0?v.valor_venda:'';
   document.getElementById('vd-troca').value='0';
   document.getElementById('vd-data').value=new Date().toISOString().split('T')[0];
+  document.getElementById('vd-cliente').innerHTML='<option value="">— Não vincular —</option>'+
+    CL.filter(c=>c.tipo==='cliente'||!c.tipo).map(c=>`<option value="${c.id}" ${v.cliente_id==c.id?'selected':''}>${c.nome}</option>`).join('');
+  document.getElementById('vd-forma').value=v.forma_pagamento||'avista';
+  document.getElementById('vd-entrada').value=v.entrada||'';
+  document.getElementById('vd-parcelas').value=v.parcelas||'';
+  document.getElementById('vd-comissao').value=v.taxa_comissao||'';
   document.getElementById('venda-preview').innerHTML='<div style="text-align:center;color:#555;padding:10px">Informe o valor de venda</div>';
   document.getElementById('cb-troca').checked=false;
   document.getElementById('troca-section').style.display='none';
@@ -1074,12 +1292,18 @@ async function confirmarVenda(){
   const v=V.find(x=>x.id==vendaVid);
   const troca=parseFloat(document.getElementById('vd-troca').value)||0;
   const cc=custosDe(vendaVid).map(c=>({descricao:c.descricao,valor:c.valor,pago_por:c.pago_por,data:c.data||''}));
+  const clienteId=document.getElementById('vd-cliente').value?parseInt(document.getElementById('vd-cliente').value):null;
+  const forma=document.getElementById('vd-forma').value;
+  const entrada=parseFloat(document.getElementById('vd-entrada').value)||0;
+  const parcelas=parseInt(document.getElementById('vd-parcelas').value)||1;
+  const comissao=parseFloat(document.getElementById('vd-comissao').value)||0;
   try{
     await PUT('/veiculos/'+vendaVid,{nome:v.nome,placa:v.placa,ano:v.ano,data_compra:v.data_compra,
       valor_compra:v.valor_compra,tem_socio:v.tem_socio,socio_id:v.socio_id,socio_pct:v.socio_pct,obs:v.obs,
       tipo_aquisicao:v.tipo_aquisicao,consignante_nome:v.consignante_nome,consignante_contato:v.consignante_contato,
-      valor_minimo_dono:v.valor_minimo_dono,
-      status:'Vendido',valor_venda:venda,troca,data_venda:document.getElementById('vd-data').value,custos:cc});
+      valor_minimo_dono:v.valor_minimo_dono,cor:v.cor,km:v.km,chassi:v.chassi,preco_pretendido:v.preco_pretendido,
+      status:'Vendido',valor_venda:venda,troca,data_venda:document.getElementById('vd-data').value,custos:cc,
+      cliente_id:clienteId,forma_pagamento:forma,entrada,parcelas,taxa_comissao:comissao});
     if(document.getElementById('cb-troca').checked&&troca>0){
       const tn=document.getElementById('t-nome').value.trim()||'Carro de Troca';
       await POST('/veiculos',{nome:tn,placa:document.getElementById('t-placa').value,
