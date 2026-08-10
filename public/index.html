@@ -398,6 +398,7 @@ tr:hover td{background:var(--surface-2)}
           </div>
         </div>
         <div class="kpi-grid" id="kpi-grid"></div>
+        <div id="potencial-frota"></div>
         <div class="table-wrap">
           <div class="table-header"><h3>📋 Estoque Atual</h3><button class="btn btn-secondary btn-sm" onclick="showPage('veiculos')">Ver todos</button></div>
           <div class="veiculos-table-desktop table-scroll"><table><thead><tr><th>Veículo</th><th>Ano</th><th>Compra</th><th>Custos</th><th>Investido</th><th>Dias</th><th>Status</th></tr></thead><tbody id="dash-estoque"></tbody></table></div>
@@ -594,18 +595,18 @@ tr:hover td{background:var(--surface-2)}
         </div>
         <div id="v-compra-fields" style="display:contents">
           <div class="form-group"><label>Data da Compra</label><input type="date" id="v-data-compra"></div>
-          <div class="form-group"><label>Valor de Compra (R$) *</label><input type="number" id="v-valor-compra" placeholder="0" oninput="updateResumo()"></div>
+          <div class="form-group"><label>Valor de Compra (R$) *</label><input type="text" inputmode="decimal" id="v-valor-compra" placeholder="0" oninput="updateResumo()"></div>
         </div>
         <div id="v-consig-fields" style="display:none">
           <div class="form-group"><label>Nome do Consignante (dono do carro) *</label><input type="text" id="v-consignante-nome" placeholder="Ex: João Silva"></div>
           <div class="form-group"><label>Contato do Consignante</label><input type="text" id="v-consignante-contato" placeholder="WhatsApp/telefone"></div>
-          <div class="form-group full"><label>Valor Mínimo Combinado com o Dono (R$) *</label><input type="number" id="v-valor-minimo-dono" placeholder="0" oninput="updateResumo()"></div>
+          <div class="form-group full"><label>Valor Mínimo Combinado com o Dono (R$) *</label><input type="text" inputmode="decimal" id="v-valor-minimo-dono" placeholder="0" oninput="updateResumo()"></div>
         </div>
         <hr class="sec-div"><div class="sec-lbl">🚘 Detalhes</div>
         <div class="form-group"><label>Cor</label><input type="text" id="v-cor" placeholder="Prata, Preto..."></div>
         <div class="form-group"><label>Quilometragem</label><input type="number" id="v-km" placeholder="50000"></div>
         <div class="form-group"><label>Chassi</label><input type="text" id="v-chassi" placeholder="Número do chassi"></div>
-        <div class="form-group"><label>Preço Pretendido (R$)</label><input type="number" id="v-preco-pretendido" placeholder="0"></div>
+        <div class="form-group"><label>Preço Pretendido (R$)</label><input type="text" inputmode="decimal" id="v-preco-pretendido" placeholder="0"></div>
         <hr class="sec-div"><div class="sec-lbl">🤝 Parceria</div>
         <div class="form-group">
           <label>Tem Sócio?</label>
@@ -642,8 +643,8 @@ tr:hover td{background:var(--surface-2)}
           </select>
         </div>
         <div class="form-group"><label>Data da Venda</label><input type="date" id="v-data-venda"></div>
-        <div class="form-group"><label>Preço Alvo / Venda (R$)</label><input type="number" id="v-valor-venda" placeholder="0" oninput="updateResumo()"></div>
-        <div class="form-group"><label>Carro Troca (R$)</label><input type="number" id="v-troca" placeholder="0"></div>
+        <div class="form-group"><label>Preço Alvo / Venda (R$)</label><input type="text" inputmode="decimal" id="v-valor-venda" placeholder="0" oninput="updateResumo()"></div>
+        <div class="form-group"><label>Carro Troca (R$)</label><input type="text" inputmode="decimal" id="v-troca" placeholder="0"></div>
         <hr class="sec-div"><div class="sec-lbl">📊 FIPE</div>
         <div id="v-fipe-aviso" class="form-group full" style="display:none;color:#888;font-size:12px">Salve o carro primeiro pra buscar o valor FIPE.</div>
         <div id="v-fipe-section" class="form-group full" style="display:none">
@@ -728,8 +729,8 @@ tr:hover td{background:var(--surface-2)}
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group full" id="venda-label" style="text-align:center;padding:10px;background:#111;border-radius:8px;border:1px solid #333;color:#FFCC01;font-weight:700;font-size:14px"></div>
-        <div class="form-group"><label>Valor de Venda (R$)</label><input type="number" id="vd-valor" oninput="calcVenda()" placeholder="0"></div>
-        <div class="form-group"><label>Carro Troca (R$)</label><input type="number" id="vd-troca" oninput="calcVenda()" placeholder="0" value="0"></div>
+        <div class="form-group"><label>Valor de Venda (R$)</label><input type="text" inputmode="decimal" id="vd-valor" oninput="calcVenda()" placeholder="0"></div>
+        <div class="form-group"><label>Carro Troca (R$)</label><input type="text" inputmode="decimal" id="vd-troca" oninput="calcVenda()" placeholder="0" value="0"></div>
         <div class="form-group"><label>Data da Venda</label><input type="date" id="vd-data"></div>
         <div class="form-group"><label>Cliente</label>
           <select id="vd-cliente"><option value="">— Não vincular —</option></select>
@@ -743,9 +744,9 @@ tr:hover td{background:var(--surface-2)}
             <option value="troca">Troca</option>
           </select>
         </div>
-        <div class="form-group"><label>Entrada (R$)</label><input type="number" id="vd-entrada" placeholder="0"></div>
+        <div class="form-group"><label>Entrada (R$)</label><input type="text" inputmode="decimal" id="vd-entrada" placeholder="0"></div>
         <div class="form-group"><label>Parcelas</label><input type="number" id="vd-parcelas" placeholder="1" min="1"></div>
-        <div class="form-group"><label>Taxa/Comissão (R$)</label><input type="number" id="vd-comissao" placeholder="0"></div>
+        <div class="form-group"><label>Taxa/Comissão (R$)</label><input type="text" inputmode="decimal" id="vd-comissao" placeholder="0"></div>
         <div class="form-group full">
           <div class="sim-result" id="venda-preview"><div style="text-align:center;color:#555;padding:10px">Informe o valor de venda</div></div>
         </div>
@@ -854,6 +855,26 @@ async function loadAll(){ [V,C,S,CL,PARC]=await Promise.all([GET('/veiculos'),GE
 
 // ═══ HELPERS ═════════════════════════════════════════════════
 const R=n=>n==null?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+// parseMoeda: interpreta "1.000" como mil (não como 1,000), e "1.000,50" como mil e cinquenta centavos.
+// Vírgula é sempre decimal. Ponto só é decimal se o último grupo depois dele tiver 1-2 dígitos.
+function parseMoeda(v){
+  if(v==null) return 0;
+  v=String(v).trim().replace(/[^\d.,-]/g,'');
+  if(!v) return 0;
+  if(v.includes(',')){
+    v=v.replace(/\./g,'').replace(',','.');
+  } else if(v.includes('.')){
+    const partes=v.split('.');
+    const ultimo=partes[partes.length-1];
+    if(ultimo.length===3) v=v.replace(/\./g,''); // 1.000 -> milhar
+    // senão (ex: 12.5, 12.50) mantém como decimal, não mexe
+  }
+  return parseFloat(v)||0;
+}
+function moedaVal(elOrId){
+  const el=typeof elOrId==='string'?document.getElementById(elOrId):elOrId;
+  return el?parseMoeda(el.value):0;
+}
 const P=n=>Number(n).toFixed(1)+'%';
 const custosDe=vid=>C.filter(c=>c.veiculo_id==vid);
 const totalC=vid=>custosDe(vid).reduce((s,c)=>s+Number(c.valor),0);
@@ -963,6 +984,32 @@ function renderDash(){
     <div class="kpi-card"><div class="kpi-label">Meu Lucro${filtrando?' (período)':''}</div><div class="kpi-value" style="color:#FFCC01">${R(lt)}</div><div class="kpi-sub">${vend.length} venda(s) · bruto ${R(ltB)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Capital Investido</div><div class="kpi-value">${R(it)}</div><div class="kpi-sub">em estoque</div></div>
     <div class="kpi-card"><div class="kpi-label">Minha Margem</div><div class="kpi-value">${P(mg)}</div><div class="kpi-sub">${filtrando?'no período':'nas vendas'}</div></div>`;
+  let semPreco=0;
+  const potRec=disp.reduce((s,v)=>{
+    if(v.tipo_aquisicao==='consignacao'){
+      if(!v.preco_pretendido||!v.valor_minimo_dono){semPreco++;return s;}
+      return s+(v.preco_pretendido-v.valor_minimo_dono);
+    }
+    if(!v.preco_pretendido){semPreco++;return s;}
+    return s+v.preco_pretendido;
+  },0);
+  const potLuc=disp.reduce((s,v)=>{
+    if(v.tipo_aquisicao==='consignacao'){
+      if(!v.preco_pretendido||!v.valor_minimo_dono) return s;
+      return s+(v.preco_pretendido-v.valor_minimo_dono-totalC(v.id));
+    }
+    if(!v.preco_pretendido) return s;
+    return s+(v.preco_pretendido-calc(v).inv);
+  },0);
+  document.getElementById('potencial-frota').innerHTML=`
+    <div class="table-wrap" style="padding:16px 18px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px">🔮 Potencial da Frota Atual <span style="font-weight:400;color:#666;font-size:11px">(se vender tudo pelo preço pretendido)</span></div>
+      <div class="kpi-grid" style="margin-bottom:0">
+        <div class="kpi-card"><div class="kpi-label">Faturamento Potencial</div><div class="kpi-value">${R(potRec)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Lucro Potencial</div><div class="kpi-value" style="color:${potLuc>=0?'#FFCC01':'#ff6b6b'}">${R(potLuc)}</div></div>
+      </div>
+      ${semPreco>0?`<div style="margin-top:10px;font-size:11.5px;color:#888">⚠️ ${semPreco} carro(s) em estoque sem preço pretendido definido — não entram nessa conta.</div>`:''}
+    </div>`;
   const ativos=V.filter(v=>v.status!=='Vendido');
   document.getElementById('dash-estoque').innerHTML=ativos.length?ativos.map(v=>{
     const{inv,consignado}=calc(v), s=v.tem_socio==='sim'?socio(v.socio_id):null, d=dias(v);
@@ -1089,7 +1136,7 @@ function renderCustos(){
   document.getElementById('custos-list').innerHTML=mCustos.map((c,i)=>`
     <div class="custo-row">
       <input type="text" value="${c.descricao}" placeholder="Ex: Polimento" oninput="mCustos[${i}].descricao=this.value;updateResumo()">
-      <input type="number" value="${c.valor||''}" placeholder="0" oninput="mCustos[${i}].valor=parseFloat(this.value)||0;updateResumo()">
+      <input type="text" inputmode="decimal" value="${c.valor||''}" placeholder="0" oninput="mCustos[${i}].valor=parseMoeda(this.value);updateResumo()">
       <input type="date" value="${c.data||''}" oninput="mCustos[${i}].data=this.value">
       <select onchange="mCustos[${i}].pago_por=this.value">
         <option value="eu" ${c.pago_por==='eu'?'selected':''}>Eu</option>
@@ -1105,10 +1152,10 @@ function updateResumo(){
   const ct=mCustos.reduce((s,c)=>s+Number(c.valor||0),0);
   document.getElementById('custo-total').textContent=R(ct);
   const consig=document.getElementById('v-tipo-aquisicao').value==='consignacao';
-  const vv=parseFloat(document.getElementById('v-valor-venda').value)||0;
+  const vv=moedaVal('v-valor-venda');
   const el=document.getElementById('v-resumo');
   if(consig){
-    const vmin=parseFloat(document.getElementById('v-valor-minimo-dono').value)||0;
+    const vmin=moedaVal('v-valor-minimo-dono');
     if(vmin>0&&vv>0){
       const comissao=vv-vmin, luc=comissao-ct, mg=vv>0?(luc/vv)*100:0, ok=luc>=0;
       el.style.display='';
@@ -1118,7 +1165,7 @@ function updateResumo(){
     } else el.style.display='none';
     return;
   }
-  const vc=parseFloat(document.getElementById('v-valor-compra').value)||0;
+  const vc=moedaVal('v-valor-compra');
   if(vc>0&&vv>0){
     const inv=vc+ct, luc=vv-inv, mg=vv>0?(luc/vv)*100:0, ok=luc>=0;
     el.style.display='';
@@ -1303,9 +1350,9 @@ async function saveVeiculo(){
   const nome=document.getElementById('v-nome').value.trim();
   const tipoAq=document.getElementById('v-tipo-aquisicao').value;
   const consig=tipoAq==='consignacao';
-  const vc=parseFloat(document.getElementById('v-valor-compra').value);
+  const vc=moedaVal('v-valor-compra');
   const consignanteNome=document.getElementById('v-consignante-nome').value.trim();
-  const valorMinimo=parseFloat(document.getElementById('v-valor-minimo-dono').value);
+  const valorMinimo=moedaVal('v-valor-minimo-dono');
   if(!nome){alert('Preencha o modelo.');return;}
   if(!consig&&!vc){alert('Preencha o valor de compra.');return;}
   if(consig&&(!consignanteNome||!valorMinimo)){alert('Preencha o nome do consignante e o valor mínimo combinado.');return;}
@@ -1316,12 +1363,12 @@ async function saveVeiculo(){
     consignante_contato:consig?document.getElementById('v-consignante-contato').value.trim():null,
     valor_minimo_dono:consig?valorMinimo:null,
     cor:document.getElementById('v-cor').value, km:parseInt(document.getElementById('v-km').value)||null,
-    chassi:document.getElementById('v-chassi').value, preco_pretendido:parseFloat(document.getElementById('v-preco-pretendido').value)||null,
+    chassi:document.getElementById('v-chassi').value, preco_pretendido:moedaVal('v-preco-pretendido')||null,
     socio_id:ts==='sim'?parseInt(document.getElementById('v-socio-id').value)||null:null,
     socio_pct:parseFloat(document.getElementById('v-socio-pct').value)||0,
     status:document.getElementById('v-status').value, data_venda:document.getElementById('v-data-venda').value,
-    valor_venda:parseFloat(document.getElementById('v-valor-venda').value)||0,
-    troca:parseFloat(document.getElementById('v-troca').value)||0,
+    valor_venda:moedaVal('v-valor-venda'),
+    troca:moedaVal('v-troca'),
     obs:document.getElementById('v-obs').value,
     custos:mCustos.filter(c=>c.descricao&&c.valor>0)};
   try{
@@ -1522,7 +1569,7 @@ function abrirModalPromissoriaAvulsa(){
       <select id="pa-cliente" onchange="document.getElementById('pa-nome-avulso').style.display=this.value?'none':'block'">${opts}</select>
       <input id="pa-nome-avulso" type="text" placeholder="Nome de quem vai assinar">
       <input id="pa-descricao" type="text" placeholder="Descrição (ex: Empréstimo, sinal de peça...)">
-      <input id="pa-valor" type="number" placeholder="Valor total (R$)">
+      <input id="pa-valor" type="text" inputmode="decimal" placeholder="Valor total (ex: 1.500,00)">
       <input id="pa-parcelas" type="number" placeholder="Parcelas" value="1" min="1">
       <input id="pa-data" type="date" value="${new Date().toISOString().slice(0,10)}">
       <button class="btn btn-primary" onclick="salvarPromissoriaAvulsa()">Gerar</button>
@@ -1532,7 +1579,7 @@ function abrirModalPromissoriaAvulsa(){
 async function salvarPromissoriaAvulsa(){
   const clienteId=document.getElementById('pa-cliente').value?parseInt(document.getElementById('pa-cliente').value):null;
   const nomeAvulso=document.getElementById('pa-nome-avulso').value.trim();
-  const valor=parseFloat(document.getElementById('pa-valor').value)||0;
+  const valor=moedaVal('pa-valor');
   const parcelas=parseInt(document.getElementById('pa-parcelas').value)||1;
   if(!clienteId&&!nomeAvulso){alert('Selecione um cliente ou digite o nome.');return;}
   if(!valor){alert('Informe o valor total.');return;}
@@ -1573,12 +1620,21 @@ async function renderPromissorias(){
 }
 function verParcelasPromissoria(id){
   const p=PROM.find(x=>x.id==id); if(!p) return;
-  const html=p.parcelas_detalhe.map(pc=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a2a2a">
+  const html=`<div style="display:flex;flex-direction:column;gap:4px">${p.parcelas_detalhe.map(pc=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a2a2a;flex-wrap:wrap">
       <input type="checkbox" ${pc.pago?'checked':''} onchange="togglePromissoriaParcela(${pc.id},this.checked,${id})">
-      <span style="flex:1">Parcela ${pc.numero}/${p.parcelas} — ${R(pc.valor)} — vence ${new Date(pc.vencimento+'T12:00:00').toLocaleDateString('pt-BR')}</span>
-    </div>`).join('');
+      <span style="width:64px;font-size:12px;color:#888">Parc. ${pc.numero}/${p.parcelas}</span>
+      <input type="text" inputmode="decimal" value="${pc.valor}" style="width:110px" onchange="editarParcelaPromissoria(${pc.id},${id},'valor',this.value)">
+      <input type="date" value="${pc.vencimento}" style="width:150px" onchange="editarParcelaPromissoria(${pc.id},${id},'vencimento',this.value)">
+    </div>`).join('')}</div>`;
   abrirModalGenerico('Parcelas — '+(p.cliente_nome||''),html);
+}
+async function editarParcelaPromissoria(id,promId,campo,valor){
+  const body={};
+  body[campo]=campo==='valor'?parseMoeda(valor):valor;
+  await PUT('/promissoria-parcelas/'+id,body);
+  await renderPromissorias();
+  verParcelasPromissoria(promId);
 }
 async function togglePromissoriaParcela(id,pago,promId){
   await PUT('/promissoria-parcelas/'+id,{pago});
@@ -1642,8 +1698,8 @@ function openModalVenda(id){
 }
 function calcVenda(){
   const v=V.find(x=>x.id==vendaVid); if(!v) return;
-  const venda=parseFloat(document.getElementById('vd-valor').value)||0;
-  const troca=parseFloat(document.getElementById('vd-troca').value)||0;
+  const venda=moedaVal('vd-valor');
+  const troca=moedaVal('vd-troca');
   const{inv}=calc(v), luc=venda-inv, mg=venda>0?(luc/venda)*100:0, ok=luc>=0;
   document.getElementById('troca-section').style.display=troca>0?'':'none';
   let sh='';
@@ -1666,16 +1722,16 @@ function toggleTrocaForm(){
   document.getElementById('troca-form').style.display=document.getElementById('cb-troca').checked?'block':'none';
 }
 async function confirmarVenda(){
-  const venda=parseFloat(document.getElementById('vd-valor').value)||0;
+  const venda=moedaVal('vd-valor');
   if(!venda){alert('Informe o valor de venda.');return;}
   const v=V.find(x=>x.id==vendaVid);
-  const troca=parseFloat(document.getElementById('vd-troca').value)||0;
+  const troca=moedaVal('vd-troca');
   const cc=custosDe(vendaVid).map(c=>({descricao:c.descricao,valor:c.valor,pago_por:c.pago_por,data:c.data||''}));
   const clienteId=document.getElementById('vd-cliente').value?parseInt(document.getElementById('vd-cliente').value):null;
   const forma=document.getElementById('vd-forma').value;
-  const entrada=parseFloat(document.getElementById('vd-entrada').value)||0;
+  const entrada=moedaVal('vd-entrada');
   const parcelas=parseInt(document.getElementById('vd-parcelas').value)||1;
-  const comissao=parseFloat(document.getElementById('vd-comissao').value)||0;
+  const comissao=moedaVal('vd-comissao');
   try{
     await PUT('/veiculos/'+vendaVid,{nome:v.nome,placa:v.placa,ano:v.ano,data_compra:v.data_compra,
       valor_compra:v.valor_compra,tem_socio:v.tem_socio,socio_id:v.socio_id,socio_pct:v.socio_pct,obs:v.obs,
