@@ -400,11 +400,13 @@ tr:hover td{background:var(--surface-2)}
         <div class="kpi-grid" id="kpi-grid"></div>
         <div class="table-wrap">
           <div class="table-header"><h3>📋 Estoque Atual</h3><button class="btn btn-secondary btn-sm" onclick="showPage('veiculos')">Ver todos</button></div>
-          <div class="table-scroll"><table><thead><tr><th>Veículo</th><th>Ano</th><th>Compra</th><th>Custos</th><th>Investido</th><th>Dias</th><th>Status</th></tr></thead><tbody id="dash-estoque"></tbody></table></div>
+          <div class="veiculos-table-desktop table-scroll"><table><thead><tr><th>Veículo</th><th>Ano</th><th>Compra</th><th>Custos</th><th>Investido</th><th>Dias</th><th>Status</th></tr></thead><tbody id="dash-estoque"></tbody></table></div>
+          <div class="veiculos-cards-mobile" id="dash-estoque-cards"></div>
         </div>
         <div class="table-wrap">
           <div class="table-header"><h3 id="dash-vendas-title">✅ Vendas</h3></div>
-          <div class="table-scroll"><table><thead><tr><th>Veículo</th><th>Data</th><th>Venda</th><th>Lucro Bruto</th><th>Meu Lucro</th><th>Margem</th></tr></thead><tbody id="dash-vendas"></tbody></table></div>
+          <div class="veiculos-table-desktop table-scroll"><table><thead><tr><th>Veículo</th><th>Data</th><th>Venda</th><th>Lucro Bruto</th><th>Meu Lucro</th><th>Margem</th></tr></thead><tbody id="dash-vendas"></tbody></table></div>
+          <div class="veiculos-cards-mobile" id="dash-vendas-cards"></div>
         </div>
       </div>
     </div>
@@ -970,6 +972,22 @@ function renderDash(){
       <td class="money">${consignado?'<span style="color:#444">—</span>':R(inv)}</td><td>${diasHtml(d)}</td>
       <td><span class="badge badge-${v.status==='Disponivel'?'disponivel':'negociacao'}">${v.status}</span></td></tr>`;
   }).join(''):`<tr><td colspan="7" style="text-align:center;color:#555;padding:20px">Estoque vazio</td></tr>`;
+  document.getElementById('dash-estoque-cards').innerHTML=ativos.length?ativos.map(v=>{
+    const{inv,consignado}=calc(v), s=v.tem_socio==='sim'?socio(v.socio_id):null, d=dias(v);
+    return`<div class="v-card">
+      <div class="v-card-top">
+        <div><div class="v-card-name">${v.nome}</div><div class="v-card-sub">${v.ano||'—'}</div></div>
+        <span class="badge badge-${v.status==='Disponivel'?'disponivel':'negociacao'}">${v.status}</span>
+      </div>
+      ${consignado?`<span class="tag-s" style="background:#2a2210;color:#FFCC01">📋 Consignado</span>`:''}
+      ${s?`<span class="tag-s">🤝 ${s.nome}</span>`:''}
+      <div class="v-card-grid">
+        <div class="v-card-field"><div class="vl">${consignado?'Mín. Dono':'Compra'}</div><div class="vv">${consignado?'—':R(v.valor_compra)}</div></div>
+        <div class="v-card-field"><div class="vl">Investido</div><div class="vv">${consignado?'—':R(inv)}</div></div>
+      </div>
+      <div class="v-card-desc">${d!==null?'⏱ '+d+' dias em estoque':''}</div>
+    </div>`;
+  }).join(''):`<div class="empty-state"><div class="icon">🚗</div><p>Estoque vazio.</p></div>`;
   document.getElementById('dash-vendas-title').textContent=filtrando?`✅ Vendas — ${labelP()}`:'✅ Todas as Vendas';
   document.getElementById('dash-vendas').innerHTML=vend.length?vend.map(v=>{
     const{luc,mg}=calc(v), ml=meuLucro(v), ts=v.tem_socio==='sim'&&v.socio_pct>0, s=ts?socio(v.socio_id):null;
@@ -980,6 +998,21 @@ function renderDash(){
       <td class="money ${ml>=0?'green':'red'}">${ts?R(ml):'—'}</td>
       <td style="color:${mg>0?'#FFCC01':'#ff6b6b'}">${P(mg)}</td></tr>`;
   }).join(''):`<tr><td colspan="6" style="text-align:center;color:#555;padding:20px">Nenhuma venda${filtrando?' neste período':''}</td></tr>`;
+  document.getElementById('dash-vendas-cards').innerHTML=vend.length?vend.map(v=>{
+    const{luc,mg}=calc(v), ml=meuLucro(v), ts=v.tem_socio==='sim'&&v.socio_pct>0, s=ts?socio(v.socio_id):null;
+    const dv=v.data_venda?new Date(v.data_venda+'T12:00:00').toLocaleDateString('pt-BR'):'—';
+    return`<div class="v-card">
+      <div class="v-card-top">
+        <div><div class="v-card-name">${v.nome}</div><div class="v-card-sub">📅 ${dv}</div></div>
+      </div>
+      ${s?`<span class="tag-s">🤝 ${s.nome} ${v.socio_pct}%</span>`:''}
+      <div class="v-card-grid">
+        <div class="v-card-field"><div class="vl">Venda</div><div class="vv">${R(v.valor_venda)}</div></div>
+        <div class="v-card-field"><div class="vl">Lucro Bruto</div><div class="vv" style="color:${luc>=0?'var(--accent)':'var(--danger)'}">${R(luc)}</div></div>
+      </div>
+      <div class="v-card-desc">${ts?'Meu lucro: '+R(ml)+' · ':''}Margem: ${P(mg)}</div>
+    </div>`;
+  }).join(''):`<div class="empty-state"><div class="icon">✅</div><p>Nenhuma venda${filtrando?' neste período':''}.</p></div>`;
 }
 
 // ═══ VEÍCULOS ═════════════════════════════════════════════════
