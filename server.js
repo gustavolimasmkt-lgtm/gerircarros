@@ -100,6 +100,22 @@ db.exec(`
     dados_depois TEXT,
     criado_em TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS clientes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo TEXT DEFAULT 'cliente',
+    nome TEXT NOT NULL,
+    telefone TEXT, email TEXT, cpf_cnpj TEXT, endereco TEXT, obs TEXT,
+    criado_em TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS checklist_itens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    veiculo_id INTEGER NOT NULL REFERENCES veiculos(id) ON DELETE CASCADE,
+    texto TEXT NOT NULL,
+    concluido INTEGER DEFAULT 0,
+    criado_em TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // migração leve: colunas de consignação/alerta se o banco já existia sem elas
@@ -111,6 +127,15 @@ for (const col of [
   "ALTER TABLE veiculos ADD COLUMN data_entrada TEXT",
   "ALTER TABLE veiculos ADD COLUMN material_pronto INTEGER DEFAULT 0",
   "ALTER TABLE veiculos ADD COLUMN data_gravacao TEXT",
+  "ALTER TABLE veiculos ADD COLUMN cor TEXT",
+  "ALTER TABLE veiculos ADD COLUMN km INTEGER",
+  "ALTER TABLE veiculos ADD COLUMN chassi TEXT",
+  "ALTER TABLE veiculos ADD COLUMN preco_pretendido REAL",
+  "ALTER TABLE veiculos ADD COLUMN cliente_id INTEGER REFERENCES clientes(id)",
+  "ALTER TABLE veiculos ADD COLUMN forma_pagamento TEXT",
+  "ALTER TABLE veiculos ADD COLUMN entrada REAL",
+  "ALTER TABLE veiculos ADD COLUMN parcelas INTEGER",
+  "ALTER TABLE veiculos ADD COLUMN taxa_comissao REAL",
 ]) {
   try { db.exec(col); } catch (e) { /* coluna já existe, ignora */ }
 }
@@ -208,7 +233,11 @@ app.delete('/api/socios/:id', (req, res) => {
 
 // ---------- VEICULOS ----------
 app.get('/api/veiculos', (_, res) => {
-  const veiculos = db.prepare('SELECT * FROM veiculos ORDER BY criado_em DESC').all();
+  const veiculos = db.prepare(`
+    SELECT v.*, c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj
+    FROM veiculos v LEFT JOIN clientes c ON c.id = v.cliente_id
+    ORDER BY v.criado_em DESC
+  `).all();
   const hoje = new Date();
   const comCalculos = veiculos.map(v => {
     const dias_desde_gravacao = v.data_gravacao
@@ -231,13 +260,15 @@ app.post('/api/veiculos', (req, res) => {
   if (consig && !b.consignante_nome) return err(res, 'Nome do consignante obrigatorio');
   if (consig && !b.valor_minimo_dono) return err(res, 'Valor minimo combinado com o dono obrigatorio');
   const r = db.prepare(`INSERT INTO veiculos
-    (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao,tipo_aquisicao,consignante_nome,consignante_contato,valor_minimo_dono)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao,tipo_aquisicao,consignante_nome,consignante_contato,valor_minimo_dono,cor,km,chassi,preco_pretendido,cliente_id,forma_pagamento,entrada,parcelas,taxa_comissao)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', consig ? 0 : b.valor_compra, b.tem_socio||'nao',
          b.socio_id||null, b.socio_pct ?? 50, b.status||'Disponivel', b.data_venda||'', b.valor_venda||0,
          b.troca||0, b.obs||'', b.data_entrada || new Date().toISOString().slice(0,10),
          b.material_pronto ? 1 : 0, b.data_gravacao||null, b.tipo_aquisicao||'compra',
-         b.consignante_nome||null, b.consignante_contato||null, consig ? b.valor_minimo_dono : null);
+         b.consignante_nome||null, b.consignante_contato||null, consig ? b.valor_minimo_dono : null,
+         b.cor||null, b.km||null, b.chassi||null, b.preco_pretendido||null,
+         b.cliente_id||null, b.forma_pagamento||null, b.entrada||null, b.parcelas||null, b.taxa_comissao||null);
   saveCustos(r.lastInsertRowid, b.custos);
   const novo = db.prepare('SELECT * FROM veiculos WHERE id=?').get(r.lastInsertRowid);
   db.prepare('INSERT INTO veiculos_auditoria (veiculo_id,usuario_id,acao,dados_depois) VALUES (?,?,?,?)')
@@ -256,12 +287,16 @@ app.put('/api/veiculos/:id', (req, res) => {
   if (consig && !b.valor_minimo_dono) return err(res, 'Valor minimo combinado com o dono obrigatorio');
   db.prepare(`UPDATE veiculos SET nome=?,placa=?,ano=?,data_compra=?,valor_compra=?,tem_socio=?,socio_id=?,socio_pct=?,
     status=?,data_venda=?,valor_venda=?,troca=?,obs=?,data_entrada=?,material_pronto=?,data_gravacao=?,
-    tipo_aquisicao=?,consignante_nome=?,consignante_contato=?,valor_minimo_dono=? WHERE id=?`)
+    tipo_aquisicao=?,consignante_nome=?,consignante_contato=?,valor_minimo_dono=?,
+    cor=?,km=?,chassi=?,preco_pretendido=?,cliente_id=?,forma_pagamento=?,entrada=?,parcelas=?,taxa_comissao=? WHERE id=?`)
     .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', consig ? 0 : b.valor_compra, b.tem_socio||'nao',
          b.socio_id||null, b.socio_pct ?? 50, b.status||'Disponivel', b.data_venda||'', b.valor_venda||0,
          b.troca||0, b.obs||'', b.data_entrada||null, b.material_pronto ? 1 : 0, b.data_gravacao||null,
          b.tipo_aquisicao||'compra', b.consignante_nome||null, b.consignante_contato||null,
-         consig ? b.valor_minimo_dono : null, req.params.id);
+         consig ? b.valor_minimo_dono : null,
+         b.cor||null, b.km||null, b.chassi||null, b.preco_pretendido||null,
+         b.cliente_id||null, b.forma_pagamento||null, b.entrada||null, b.parcelas||null, b.taxa_comissao||null,
+         req.params.id);
   if (b.custos !== undefined) saveCustos(req.params.id, b.custos);
   const depois = db.prepare('SELECT * FROM veiculos WHERE id=?').get(req.params.id);
   db.prepare('INSERT INTO veiculos_auditoria (veiculo_id,usuario_id,acao,dados_antes,dados_depois) VALUES (?,?,?,?,?)')
@@ -348,6 +383,54 @@ app.put('/api/veiculos/:id/fipe', (req, res) => {
 
 // ---------- CUSTOS ----------
 app.get('/api/custos', (_, res) => ok(res, db.prepare('SELECT * FROM custos ORDER BY veiculo_id, criado_em').all()));
+
+// ---------- CLIENTES ----------
+app.get('/api/clientes', (_, res) => ok(res, db.prepare('SELECT * FROM clientes ORDER BY nome').all()));
+app.post('/api/clientes', (req, res) => {
+  const { tipo, nome, telefone, email, cpf_cnpj, endereco, obs } = req.body;
+  if (!nome) return err(res, 'Nome obrigatorio');
+  const r = db.prepare('INSERT INTO clientes (tipo,nome,telefone,email,cpf_cnpj,endereco,obs) VALUES (?,?,?,?,?,?,?)')
+    .run(tipo || 'cliente', nome, telefone||'', email||'', cpf_cnpj||'', endereco||'', obs||'');
+  ok(res, db.prepare('SELECT * FROM clientes WHERE id=?').get(r.lastInsertRowid));
+});
+app.put('/api/clientes/:id', (req, res) => {
+  const { tipo, nome, telefone, email, cpf_cnpj, endereco, obs } = req.body;
+  if (!nome) return err(res, 'Nome obrigatorio');
+  db.prepare('UPDATE clientes SET tipo=?,nome=?,telefone=?,email=?,cpf_cnpj=?,endereco=?,obs=? WHERE id=?')
+    .run(tipo || 'cliente', nome, telefone||'', email||'', cpf_cnpj||'', endereco||'', obs||'', req.params.id);
+  ok(res, db.prepare('SELECT * FROM clientes WHERE id=?').get(req.params.id));
+});
+app.delete('/api/clientes/:id', (req, res) => {
+  if (db.prepare('SELECT id FROM veiculos WHERE cliente_id=? LIMIT 1').get(req.params.id))
+    return err(res, 'Cliente vinculado a uma venda, nao pode ser excluido.');
+  db.prepare('DELETE FROM clientes WHERE id=?').run(req.params.id);
+  ok(res, { id: req.params.id });
+});
+
+// ---------- CHECKLIST ----------
+app.get('/api/veiculos/:id/checklist', (req, res) => {
+  ok(res, db.prepare('SELECT * FROM checklist_itens WHERE veiculo_id=? ORDER BY criado_em').all(req.params.id));
+});
+app.post('/api/veiculos/:id/checklist', (req, res) => {
+  const { texto } = req.body;
+  if (!texto) return err(res, 'Texto obrigatorio');
+  const veiculo = db.prepare('SELECT id FROM veiculos WHERE id=?').get(req.params.id);
+  if (!veiculo) return err(res, 'Veiculo nao encontrado', 404);
+  const r = db.prepare('INSERT INTO checklist_itens (veiculo_id, texto) VALUES (?,?)').run(req.params.id, texto);
+  ok(res, db.prepare('SELECT * FROM checklist_itens WHERE id=?').get(r.lastInsertRowid));
+});
+app.put('/api/checklist/:id', (req, res) => {
+  const item = db.prepare('SELECT * FROM checklist_itens WHERE id=?').get(req.params.id);
+  if (!item) return err(res, 'Item nao encontrado', 404);
+  const concluido = req.body.concluido !== undefined ? (req.body.concluido ? 1 : 0) : item.concluido;
+  const texto = req.body.texto !== undefined ? req.body.texto : item.texto;
+  db.prepare('UPDATE checklist_itens SET texto=?, concluido=? WHERE id=?').run(texto, concluido, req.params.id);
+  ok(res, db.prepare('SELECT * FROM checklist_itens WHERE id=?').get(req.params.id));
+});
+app.delete('/api/checklist/:id', (req, res) => {
+  db.prepare('DELETE FROM checklist_itens WHERE id=?').run(req.params.id);
+  ok(res, { id: req.params.id });
+});
 
 // ---------- ALERTAS ----------
 app.get('/api/alertas', (_, res) => {
