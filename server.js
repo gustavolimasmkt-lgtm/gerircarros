@@ -40,6 +40,7 @@ db.exec(`
     nome TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     senha_hash TEXT NOT NULL,
+    recovery_code_hash TEXT,
     criado_em TEXT DEFAULT (datetime('now'))
   );
 
@@ -116,10 +117,22 @@ db.exec(`
     concluido INTEGER DEFAULT 0,
     criado_em TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS parcelas_venda (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    veiculo_id INTEGER NOT NULL REFERENCES veiculos(id) ON DELETE CASCADE,
+    numero INTEGER NOT NULL,
+    valor REAL NOT NULL,
+    vencimento TEXT NOT NULL,
+    pago INTEGER DEFAULT 0,
+    pago_em TEXT,
+    criado_em TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // migração leve: colunas de consignação/alerta se o banco já existia sem elas
 for (const col of [
+  "ALTER TABLE usuarios ADD COLUMN recovery_code_hash TEXT",
   "ALTER TABLE veiculos ADD COLUMN tipo_aquisicao TEXT DEFAULT 'compra'",
   "ALTER TABLE veiculos ADD COLUMN consignante_nome TEXT",
   "ALTER TABLE veiculos ADD COLUMN consignante_contato TEXT",
@@ -152,6 +165,22 @@ function saveCustos(vid, arr) {
   }
 }
 
+function saveParcelas(vid, veiculoRow) {
+  db.prepare('DELETE FROM parcelas_venda WHERE veiculo_id=?').run(vid);
+  if (veiculoRow.status !== 'Vendido') return;
+  const parcelas = veiculoRow.parcelas || 0;
+  const valorTotal = (veiculoRow.valor_venda || 0) - (veiculoRow.entrada || 0);
+  if (parcelas <= 1 || valorTotal <= 0) return;
+  const valorParcela = valorTotal / parcelas;
+  const dataBase = veiculoRow.data_venda ? new Date(veiculoRow.data_venda + 'T12:00:00') : new Date();
+  const ins = db.prepare('INSERT INTO parcelas_venda (veiculo_id,numero,valor,vencimento) VALUES (?,?,?,?)');
+  for (let i = 1; i <= parcelas; i++) {
+    const venc = new Date(dataBase);
+    venc.setMonth(venc.getMonth() + i);
+    ins.run(vid, i, valorParcela, venc.toISOString().slice(0, 10));
+  }
+}
+
 // ---------- AUTH ----------
 function requireAuth(req, res, next) {
   const token = req.cookies.sessao;
@@ -180,9 +209,26 @@ app.post('/api/auth/registrar', (req, res) => {
   const existe = db.prepare('SELECT id FROM usuarios WHERE email=?').get(email.toLowerCase());
   if (existe) return err(res, 'Email ja cadastrado');
   const hash = bcrypt.hashSync(senha, 10);
-  const r = db.prepare('INSERT INTO usuarios (nome, email, senha_hash) VALUES (?,?,?)')
-    .run(nome, email.toLowerCase(), hash);
-  ok(res, { id: r.lastInsertRowid, nome, email: email.toLowerCase() });
+  const recoveryCode = crypto.randomBytes(6).toString('hex').toUpperCase().match(/.{1,4}/g).join('-'); // ex: A1B2-C3D4-E5F6
+  const recoveryHash = bcrypt.hashSync(recoveryCode, 10);
+  const r = db.prepare('INSERT INTO usuarios (nome, email, senha_hash, recovery_code_hash) VALUES (?,?,?,?)')
+    .run(nome, email.toLowerCase(), hash, recoveryHash);
+  ok(res, { id: r.lastInsertRowid, nome, email: email.toLowerCase(), recoveryCode });
+});
+
+app.post('/api/auth/recuperar-senha', (req, res) => {
+  const { email, codigo, novaSenha } = req.body;
+  if (!email || !codigo || !novaSenha) return err(res, 'Email, código de recuperação e nova senha obrigatorios');
+  if (novaSenha.length < 6) return err(res, 'Senha precisa de ao menos 6 caracteres');
+  const user = db.prepare('SELECT * FROM usuarios WHERE email=?').get(email.toLowerCase());
+  if (!user || !user.recovery_code_hash || !bcrypt.compareSync(codigo.trim().toUpperCase(), user.recovery_code_hash))
+    return err(res, 'Email ou código de recuperação inválido', 401);
+  const novoHash = bcrypt.hashSync(novaSenha, 10);
+  const novoCodigo = crypto.randomBytes(6).toString('hex').toUpperCase().match(/.{1,4}/g).join('-');
+  const novoCodigoHash = bcrypt.hashSync(novoCodigo, 10);
+  db.prepare('UPDATE usuarios SET senha_hash=?, recovery_code_hash=? WHERE id=?').run(novoHash, novoCodigoHash, user.id);
+  db.prepare('DELETE FROM sessoes WHERE usuario_id=?').run(user.id); // desloga sessoes antigas por segurança
+  ok(res, { msg: 'Senha alterada', novoCodigo });
 });
 
 app.post('/api/auth/login', (req, res) => {
@@ -207,6 +253,13 @@ app.get('/api/auth/me', requireAuth, (req, res) => ok(res, req.user));
 
 // tudo abaixo exige login
 app.use('/api', requireAuth);
+
+app.post('/api/auth/gerar-codigo-recuperacao', (req, res) => {
+  const novoCodigo = crypto.randomBytes(6).toString('hex').toUpperCase().match(/.{1,4}/g).join('-');
+  const novoCodigoHash = bcrypt.hashSync(novoCodigo, 10);
+  db.prepare('UPDATE usuarios SET recovery_code_hash=? WHERE id=?').run(novoCodigoHash, req.user.id);
+  ok(res, { novoCodigo });
+});
 
 // ---------- SOCIOS ----------
 app.get('/api/socios', (_, res) => ok(res, db.prepare('SELECT * FROM socios ORDER BY nome').all()));
@@ -259,6 +312,10 @@ app.post('/api/veiculos', (req, res) => {
   if (!consig && !b.valor_compra) return err(res, 'Valor de compra obrigatorio');
   if (consig && !b.consignante_nome) return err(res, 'Nome do consignante obrigatorio');
   if (consig && !b.valor_minimo_dono) return err(res, 'Valor minimo combinado com o dono obrigatorio');
+  if (b.placa && b.placa.trim()) {
+    const dup = db.prepare('SELECT id, nome FROM veiculos WHERE UPPER(REPLACE(placa,"-","")) = UPPER(REPLACE(?,"-",""))').get(b.placa.trim());
+    if (dup) return err(res, `Placa já cadastrada no veículo "${dup.nome}" (id ${dup.id}).`);
+  }
   const r = db.prepare(`INSERT INTO veiculos
     (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao,tipo_aquisicao,consignante_nome,consignante_contato,valor_minimo_dono,cor,km,chassi,preco_pretendido,cliente_id,forma_pagamento,entrada,parcelas,taxa_comissao)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
@@ -271,6 +328,7 @@ app.post('/api/veiculos', (req, res) => {
          b.cliente_id||null, b.forma_pagamento||null, b.entrada||null, b.parcelas||null, b.taxa_comissao||null);
   saveCustos(r.lastInsertRowid, b.custos);
   const novo = db.prepare('SELECT * FROM veiculos WHERE id=?').get(r.lastInsertRowid);
+  saveParcelas(r.lastInsertRowid, novo);
   db.prepare('INSERT INTO veiculos_auditoria (veiculo_id,usuario_id,acao,dados_depois) VALUES (?,?,?,?)')
     .run(r.lastInsertRowid, req.user.id, 'criado', JSON.stringify(novo));
   ok(res, novo);
@@ -285,6 +343,10 @@ app.put('/api/veiculos/:id', (req, res) => {
   if (!consig && !b.valor_compra) return err(res, 'Valor de compra obrigatorio');
   if (consig && !b.consignante_nome) return err(res, 'Nome do consignante obrigatorio');
   if (consig && !b.valor_minimo_dono) return err(res, 'Valor minimo combinado com o dono obrigatorio');
+  if (b.placa && b.placa.trim()) {
+    const dup = db.prepare('SELECT id, nome FROM veiculos WHERE UPPER(REPLACE(placa,"-","")) = UPPER(REPLACE(?,"-","")) AND id != ?').get(b.placa.trim(), req.params.id);
+    if (dup) return err(res, `Placa já cadastrada no veículo "${dup.nome}" (id ${dup.id}).`);
+  }
   db.prepare(`UPDATE veiculos SET nome=?,placa=?,ano=?,data_compra=?,valor_compra=?,tem_socio=?,socio_id=?,socio_pct=?,
     status=?,data_venda=?,valor_venda=?,troca=?,obs=?,data_entrada=?,material_pronto=?,data_gravacao=?,
     tipo_aquisicao=?,consignante_nome=?,consignante_contato=?,valor_minimo_dono=?,
@@ -299,6 +361,7 @@ app.put('/api/veiculos/:id', (req, res) => {
          req.params.id);
   if (b.custos !== undefined) saveCustos(req.params.id, b.custos);
   const depois = db.prepare('SELECT * FROM veiculos WHERE id=?').get(req.params.id);
+  saveParcelas(req.params.id, depois);
   db.prepare('INSERT INTO veiculos_auditoria (veiculo_id,usuario_id,acao,dados_antes,dados_depois) VALUES (?,?,?,?,?)')
     .run(req.params.id, req.user.id, 'editado', JSON.stringify(antes), JSON.stringify(depois));
   ok(res, depois);
@@ -383,6 +446,26 @@ app.put('/api/veiculos/:id/fipe', (req, res) => {
 
 // ---------- CUSTOS ----------
 app.get('/api/custos', (_, res) => ok(res, db.prepare('SELECT * FROM custos ORDER BY veiculo_id, criado_em').all()));
+
+// ---------- PARCELAS (CONTAS A RECEBER) ----------
+app.get('/api/parcelas', (_, res) => {
+  ok(res, db.prepare(`
+    SELECT p.*, v.nome as veiculo_nome, v.placa as veiculo_placa,
+           c.nome as cliente_nome, c.telefone as cliente_telefone
+    FROM parcelas_venda p
+    JOIN veiculos v ON v.id = p.veiculo_id
+    LEFT JOIN clientes c ON c.id = v.cliente_id
+    ORDER BY p.vencimento ASC
+  `).all());
+});
+app.put('/api/parcelas/:id', (req, res) => {
+  const item = db.prepare('SELECT * FROM parcelas_venda WHERE id=?').get(req.params.id);
+  if (!item) return err(res, 'Parcela nao encontrada', 404);
+  const pago = req.body.pago ? 1 : 0;
+  db.prepare('UPDATE parcelas_venda SET pago=?, pago_em=? WHERE id=?')
+    .run(pago, pago ? new Date().toISOString().slice(0,10) : null, req.params.id);
+  ok(res, db.prepare('SELECT * FROM parcelas_venda WHERE id=?').get(req.params.id));
+});
 
 // ---------- CLIENTES ----------
 app.get('/api/clientes', (_, res) => ok(res, db.prepare('SELECT * FROM clientes ORDER BY nome').all()));
