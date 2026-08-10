@@ -328,6 +328,7 @@ app.get('/api/veiculos', (_, res) => {
 });
 
 app.post('/api/veiculos', (req, res) => {
+  try {
   const b = req.body;
   const consig = b.tipo_aquisicao === 'consignacao';
   if (!b.nome) return err(res, 'Nome obrigatorio');
@@ -354,9 +355,11 @@ app.post('/api/veiculos', (req, res) => {
   db.prepare('INSERT INTO veiculos_auditoria (veiculo_id,usuario_id,acao,dados_depois) VALUES (?,?,?,?)')
     .run(r.lastInsertRowid, req.user.id, 'criado', JSON.stringify(novo));
   ok(res, novo);
+  } catch (e) { err(res, 'Erro ao salvar veiculo: ' + e.message, 500); }
 });
 
 app.put('/api/veiculos/:id', (req, res) => {
+  try {
   const b = req.body;
   const consig = b.tipo_aquisicao === 'consignacao';
   const antes = db.prepare('SELECT * FROM veiculos WHERE id=?').get(req.params.id);
@@ -387,6 +390,7 @@ app.put('/api/veiculos/:id', (req, res) => {
   db.prepare('INSERT INTO veiculos_auditoria (veiculo_id,usuario_id,acao,dados_antes,dados_depois) VALUES (?,?,?,?,?)')
     .run(req.params.id, req.user.id, 'editado', JSON.stringify(antes), JSON.stringify(depois));
   ok(res, depois);
+  } catch (e) { err(res, 'Erro ao editar veiculo: ' + e.message, 500); }
 });
 
 app.delete('/api/veiculos/:id', (req, res) => {
@@ -672,6 +676,12 @@ app.get('/api/alertas', (_, res) => {
 });
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+// rede de segurança: qualquer erro nao tratado em nenhuma rota /api devolve JSON, nunca HTML
+app.use('/api', (error, req, res, next) => {
+  console.error('Erro nao tratado:', error);
+  res.status(500).json({ ok: false, error: 'Erro interno: ' + error.message });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`aclera.cars rodando na porta ${PORT}`));
