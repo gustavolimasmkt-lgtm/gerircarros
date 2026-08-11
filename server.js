@@ -74,6 +74,9 @@ db.exec(`
     consignante_nome TEXT,
     consignante_contato TEXT,
     valor_minimo_dono REAL,
+    versao_motor TEXT,
+    postado_instagram INTEGER DEFAULT 0,
+    anuncio_ativo INTEGER DEFAULT 0,
     criado_em TEXT DEFAULT (datetime('now'))
   );
 
@@ -171,6 +174,9 @@ for (const col of [
   "ALTER TABLE veiculos ADD COLUMN entrada REAL",
   "ALTER TABLE veiculos ADD COLUMN parcelas INTEGER",
   "ALTER TABLE veiculos ADD COLUMN taxa_comissao REAL",
+  "ALTER TABLE veiculos ADD COLUMN versao_motor TEXT",
+  "ALTER TABLE veiculos ADD COLUMN postado_instagram INTEGER DEFAULT 0",
+  "ALTER TABLE veiculos ADD COLUMN anuncio_ativo INTEGER DEFAULT 0",
 ]) {
   try { db.exec(col); } catch (e) { /* coluna já existe, ignora */ }
 }
@@ -340,15 +346,16 @@ app.post('/api/veiculos', (req, res) => {
     if (dup) return err(res, `Placa já cadastrada no veículo "${dup.nome}" (id ${dup.id}).`);
   }
   const r = db.prepare(`INSERT INTO veiculos
-    (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao,tipo_aquisicao,consignante_nome,consignante_contato,valor_minimo_dono,cor,km,chassi,preco_pretendido,cliente_id,forma_pagamento,entrada,parcelas,taxa_comissao)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao,tipo_aquisicao,consignante_nome,consignante_contato,valor_minimo_dono,cor,km,chassi,preco_pretendido,cliente_id,forma_pagamento,entrada,parcelas,taxa_comissao,versao_motor,postado_instagram,anuncio_ativo)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', consig ? 0 : b.valor_compra, b.tem_socio||'nao',
          b.socio_id||null, b.socio_pct ?? 50, b.status||'Disponivel', b.data_venda||'', b.valor_venda||0,
          b.troca||0, b.obs||'', b.data_entrada || new Date().toISOString().slice(0,10),
          b.material_pronto ? 1 : 0, b.data_gravacao||null, b.tipo_aquisicao||'compra',
          b.consignante_nome||null, b.consignante_contato||null, consig ? b.valor_minimo_dono : null,
          b.cor||null, b.km||null, b.chassi||null, b.preco_pretendido||null,
-         b.cliente_id||null, b.forma_pagamento||null, b.entrada||null, b.parcelas||null, b.taxa_comissao||null);
+         b.cliente_id||null, b.forma_pagamento||null, b.entrada||null, b.parcelas||null, b.taxa_comissao||null,
+         b.versao_motor||null, b.postado_instagram?1:0, b.anuncio_ativo?1:0);
   saveCustos(r.lastInsertRowid, b.custos);
   const novo = db.prepare('SELECT * FROM veiculos WHERE id=?').get(r.lastInsertRowid);
   saveParcelas(r.lastInsertRowid, novo);
@@ -375,7 +382,8 @@ app.put('/api/veiculos/:id', (req, res) => {
   db.prepare(`UPDATE veiculos SET nome=?,placa=?,ano=?,data_compra=?,valor_compra=?,tem_socio=?,socio_id=?,socio_pct=?,
     status=?,data_venda=?,valor_venda=?,troca=?,obs=?,data_entrada=?,material_pronto=?,data_gravacao=?,
     tipo_aquisicao=?,consignante_nome=?,consignante_contato=?,valor_minimo_dono=?,
-    cor=?,km=?,chassi=?,preco_pretendido=?,cliente_id=?,forma_pagamento=?,entrada=?,parcelas=?,taxa_comissao=? WHERE id=?`)
+    cor=?,km=?,chassi=?,preco_pretendido=?,cliente_id=?,forma_pagamento=?,entrada=?,parcelas=?,taxa_comissao=?,
+    versao_motor=?,postado_instagram=?,anuncio_ativo=? WHERE id=?`)
     .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', consig ? 0 : b.valor_compra, b.tem_socio||'nao',
          b.socio_id||null, b.socio_pct ?? 50, b.status||'Disponivel', b.data_venda||'', b.valor_venda||0,
          b.troca||0, b.obs||'', b.data_entrada||null, b.material_pronto ? 1 : 0, b.data_gravacao||null,
@@ -383,6 +391,7 @@ app.put('/api/veiculos/:id', (req, res) => {
          consig ? b.valor_minimo_dono : null,
          b.cor||null, b.km||null, b.chassi||null, b.preco_pretendido||null,
          b.cliente_id||null, b.forma_pagamento||null, b.entrada||null, b.parcelas||null, b.taxa_comissao||null,
+         b.versao_motor||null, b.postado_instagram?1:0, b.anuncio_ativo?1:0,
          req.params.id);
   if (b.custos !== undefined) saveCustos(req.params.id, b.custos);
   const depois = db.prepare('SELECT * FROM veiculos WHERE id=?').get(req.params.id);
@@ -673,6 +682,59 @@ app.get('/api/alertas', (_, res) => {
     .map(v => ({ ...v, dias: Math.floor((hoje - new Date(v.data_gravacao)) / 86400000) }))
     .filter(v => v.dias >= 15);
   ok(res, alertas);
+});
+
+// ---------- IA (Anthropic) ----------
+const PROMPTS_IA = {
+  roteiro: (v) => ({
+    system: `Você é um especialista em vendas de veículos usados no Brasil. Com base nos dados do carro, gere os principais diferenciais de venda e o perfil do comprador ideal, para ajudar o vendedor a criar roteiros de vídeo. Seja específico e prático, nada genérico. Responda APENAS com um JSON válido, sem markdown, no formato exato: {"diferenciais":"texto aqui","perfil":"texto aqui"}`,
+    user: `Modelo: ${v.nome}\nAno: ${v.ano||'não informado'}\nVersão/Motor: ${v.versao_motor||'não informado'}\nPreço: R$ ${v.preco||'não informado'}`
+  }),
+  legenda: (v) => ({
+    system: `Você é um especialista em marketing de vendas de carros usados no Brasil, tom comercial direto, com emojis e CTA forte. Gere DUAS legendas diferentes pro mesmo carro: uma pra post orgânico do Instagram (mais storytelling, pode ser um pouco mais longa) e uma pro anúncio pago no Meta Ads (mais direta, foco total em conversão e urgência). Use como referência de ESTILO este exemplo real do cliente (não copie o carro dele, é só o tom):\n\n"👉 Transferência grátis + tanque cheio + IPVA pago pra quem vier desse vídeo.\n🚘 Jeep Compass Longitude 2022\nSe você procura um SUV moderno, completo e com procedência impecável, presta atenção nessa oportunidade.\n✔️ Único dono\n✔️ Apenas 80.000 km\n✔️ Todas as revisões na concessionária\n💰 R$ 123.900\n🔄 Pegamos troca\n💳 Financiamos\n👉 Chama no WhatsApp agora antes que venda."\n\nResponda APENAS com um JSON válido, sem markdown, no formato exato: {"legenda_instagram":"texto aqui","legenda_anuncio":"texto aqui"}`,
+    user: `Modelo: ${v.nome}\nAno: ${v.ano||'não informado'}\nVersão/Motor: ${v.versao_motor||'não informado'}\nPreço: R$ ${v.preco||'não informado'}\nDiferenciais conhecidos: ${v.diferenciais||'não informado, use o bom senso pro modelo'}\nOferta de abertura (só use se preenchido, não invente oferta): ${v.oferta_abertura||'nenhuma oferta especial dessa vez, não invente uma'}`
+  }),
+  gancho: (v) => ({
+    system: `Você é um especialista em marketing agressivo e comercial pra vídeos curtos (Reels/TikTok/Shorts) de venda de carros usados no Brasil. Gere 5 ganchos diferentes — a primeira frase falada do vídeo, pensada pra prender atenção nos primeiros 2 segundos. Tom bem comercial e agressivo, sem ser ofensivo. Varie a abordagem entre os 5 (preço, urgência, provocação, benefício, curiosidade). Responda APENAS com um JSON válido, sem markdown, no formato exato: {"ganchos":["gancho 1","gancho 2","gancho 3","gancho 4","gancho 5"]}`,
+    user: `Modelo: ${v.nome}\nAno: ${v.ano||'não informado'}\nVersão/Motor: ${v.versao_motor||'não informado'}\nPreço: R$ ${v.preco||'não informado'}`
+  })
+};
+
+async function chamarClaude(system, user) {
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY nao configurada no Railway (Settings -> Variables)');
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-5',
+      max_tokens: 1200,
+      system,
+      messages: [{ role: 'user', content: user }]
+    })
+  });
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(`Erro na API da Anthropic (${r.status}): ${txt.slice(0,300)}`);
+  }
+  const data = await r.json();
+  const texto = data.content.map(b => b.type === 'text' ? b.text : '').join('').trim();
+  const limpo = texto.replace(/^```json\s*/i, '').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+  try { return JSON.parse(limpo); }
+  catch (e) { throw new Error('A IA respondeu em formato inesperado: ' + texto.slice(0,200)); }
+}
+
+app.post('/api/ia/:tipo', async (req, res) => {
+  const gerador = PROMPTS_IA[req.params.tipo];
+  if (!gerador) return err(res, 'Tipo de geracao invalido');
+  try {
+    const { system, user } = gerador(req.body || {});
+    const resultado = await chamarClaude(system, user);
+    ok(res, resultado);
+  } catch (e) { err(res, e.message, 502); }
 });
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
