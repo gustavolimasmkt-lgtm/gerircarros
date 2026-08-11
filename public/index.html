@@ -137,7 +137,7 @@ tr:hover td{background:var(--surface-2)}
 @media(min-width:640px){.modal{max-width:700px;border-radius:var(--radius-lg);max-height:92vh}}
 .modal-header{padding:20px 22px 14px;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);z-index:10}
 .modal-header h3{font-family:var(--font-display);font-size:15.5px;font-weight:600;color:var(--text)}
-.modal-body{padding:20px 22px}
+.modal-body{padding:20px 22px;overflow-x:hidden}
 .modal-footer{padding:14px 22px;border-top:1px solid var(--border-soft);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--surface)}
 .close-btn{background:none;border:none;color:var(--text-faint);font-size:20px;cursor:pointer;line-height:1;transition:color .15s}
 .close-btn:hover{color:var(--text)}
@@ -340,7 +340,7 @@ tr:hover td{background:var(--surface-2)}
       <div class="nav-item" onclick="showPage('checklist',this)"><span class="icon">☑️</span> Checklist</div>
       <div class="nav-item" onclick="showPage('receber',this)"><span class="icon">💵</span> Contas a Receber</div>
       <div class="nav-item" onclick="showPage('promissorias',this)"><span class="icon">📄</span> Promissórias</div>
-      <div class="nav-item" onclick="showPage('alertas',this)"><span class="icon">⏰</span> Alertas</div>
+      <div class="nav-item" onclick="showPage('marketing',this)"><span class="icon">📣</span> Marketing</div>
       <div class="nav-section">Pessoas</div>
       <div class="nav-item" onclick="showPage('clientes',this)"><span class="icon">📇</span> Clientes</div>
       <div class="nav-item" onclick="showPage('socios',this)"><span class="icon">🤝</span> Sócios</div>
@@ -494,9 +494,9 @@ tr:hover td{background:var(--surface-2)}
     </div>
 
     <!-- ALERTAS -->
-    <div id="page-alertas" class="page">
-      <div class="header"><div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Alertas</h2><div class="header-sub">Carros com material parado há 15+ dias</div></div></div></div>
-      <div class="content" id="alertas-content"></div>
+    <div id="page-marketing" class="page">
+      <div class="header"><div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Marketing</h2><div class="header-sub">Organização de material, posts e anúncios por carro</div></div></div></div>
+      <div class="content" id="marketing-content"></div>
     </div>
 
     <div id="page-checklist" class="page">
@@ -925,7 +925,7 @@ async function showPage(p,el){
   const bn=document.querySelector(`.bn-item[data-page="${p}"]`);
   if(bn) bn.classList.add('active');
   await loadAll();
-  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,alertas:renderAlertas,checklist:renderChecklistPage,receber:renderReceber,promissorias:renderPromissorias};
+  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,marketing:renderMarketing,checklist:renderChecklistPage,receber:renderReceber,promissorias:renderPromissorias};
   if(map[p]) map[p]();
 }
 function bottomNavGo(p,el){ showPage(p,null); }
@@ -1492,9 +1492,9 @@ function renderChecklistItens(itens){
   if(!itens.length) return '<p style="color:#666;font-size:13px">Nenhuma tarefa ainda.</p>';
   return itens.map(i=>`
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a2a2a">
-      <input type="checkbox" ${i.concluido?'checked':''} onchange="toggleChecklistItem(${i.id},this.checked)">
-      <span style="flex:1;${i.concluido?'text-decoration:line-through;color:#666':''}">${i.texto}</span>
-      <button class="del-custo" onclick="delChecklistItem(${i.id})">×</button>
+      <input type="checkbox" ${i.concluido?'checked':''} onchange="toggleChecklistItem(${i.id},this.checked)" style="flex-shrink:0">
+      <span style="flex:1;min-width:0;overflow-wrap:anywhere;${i.concluido?'text-decoration:line-through;color:#666':''}">${i.texto}</span>
+      <button class="del-custo" onclick="delChecklistItem(${i.id})" style="flex-shrink:0">×</button>
     </div>`).join('');
 }
 async function addChecklistItem(){
@@ -2185,12 +2185,100 @@ function abrirModalGenerico(titulo,html){
 }
 
 // ═══ ALERTAS ═════════════════════════════════════════════════
-async function renderAlertas(){
-  const alertas=await GET('/alertas');
-  const el=document.getElementById('alertas-content');
-  if(!alertas.length){ el.innerHTML='<p style="color:#888">Nenhum carro com material parado há 15+ dias. 🎉</p>'; return; }
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Gravado em</th><th>Dias parado</th><th>Status</th></tr></thead>
-    <tbody>${alertas.map(a=>`<tr><td>${a.nome}</td><td>${a.data_gravacao}</td><td class="dias-danger">🔴 ${a.dias}d</td><td>${a.status}</td></tr>`).join('')}</tbody></table></div>`;
+async function renderMarketing(){
+  const ativos=V.filter(v=>v.status!=='Vendido');
+  const el=document.getElementById('marketing-content');
+  if(!ativos.length){ el.innerHTML='<div class="empty-state"><div class="icon">📣</div><p>Nenhum carro em estoque.</p></div>'; return; }
+  const hoje=new Date();
+  const estagios=[
+    {chave:'sem', titulo:'📹 Sem material', filtro:v=>!v.material_pronto},
+    {chave:'gravado', titulo:'🎬 Gravado, não postado', filtro:v=>v.material_pronto&&!v.postado_instagram},
+    {chave:'postado', titulo:'📱 Postado, sem anúncio', filtro:v=>v.postado_instagram&&!v.anuncio_ativo},
+    {chave:'ativo', titulo:'📢 Anúncio rodando', filtro:v=>v.anuncio_ativo},
+  ];
+  el.innerHTML=estagios.map(e=>{
+    const lista=ativos.filter(e.filtro);
+    if(!lista.length) return '';
+    return `<div style="margin-bottom:22px">
+      <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px">${e.titulo} <span style="color:#666;font-weight:400">(${lista.length})</span></div>
+      <div class="socios-grid">${lista.map(v=>marketingCard(v,hoje)).join('')}</div>
+    </div>`;
+  }).join('');
+}
+function marketingCard(v,hoje){
+  const diasGravacao=v.data_gravacao?Math.floor((hoje-new Date(v.data_gravacao+'T12:00:00'))/86400000):null;
+  const parado=v.material_pronto&&diasGravacao!==null&&diasGravacao>=15&&!v.anuncio_ativo;
+  return `<div class="socio-card">
+    <div class="sc-name">${v.nome}</div>
+    <div class="sc-info">${v.ano||'—'}${v.placa?' · '+v.placa:''}</div>
+    ${parado?`<span class="tag-s" style="background:var(--danger-bg);color:var(--danger)">🔴 ${diasGravacao}d sem avançar — grave material novo</span>`:''}
+    <input type="text" placeholder="Versão / Motor (ex: 1.6 Flex Automático)" value="${v.versao_motor||''}" style="margin:10px 0 6px;background:var(--surface-inset);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;width:100%" onchange="marketingSalvarCampo(${v.id},'versao_motor',this.value)">
+    <div style="display:flex;flex-direction:column;gap:6px;margin:10px 0;font-size:12px">
+      <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim)"><input type="checkbox" ${v.material_pronto?'checked':''} onchange="marketingToggle(${v.id},'material_pronto',this.checked)"> Material gravado</label>
+      <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim)"><input type="checkbox" ${v.postado_instagram?'checked':''} onchange="marketingToggle(${v.id},'postado_instagram',this.checked)"> Postado no Instagram</label>
+      <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim)"><input type="checkbox" ${v.anuncio_ativo?'checked':''} onchange="marketingToggle(${v.id},'anuncio_ativo',this.checked)"> Anúncio rodando</label>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+      <button class="btn btn-secondary btn-sm" style="justify-content:center" onclick="gerarIA('roteiro',${v.id})">🤖 Gerar Roteiro</button>
+      <button class="btn btn-secondary btn-sm" style="justify-content:center" onclick="gerarIA('legenda',${v.id})">🤖 Gerar Legenda</button>
+      <button class="btn btn-secondary btn-sm" style="justify-content:center" onclick="gerarIA('gancho',${v.id})">🤖 Gerar Gancho de Vídeo</button>
+    </div>
+  </div>`;
+}
+async function marketingToggle(id,campo,valor){
+  const v=V.find(x=>x.id==id); if(!v) return;
+  const body={...v, [campo]:valor?1:0};
+  try{ await PUT('/veiculos/'+id,body); await loadAll(); renderMarketing(); }catch(e){alert(e.message);}
+}
+async function marketingSalvarCampo(id,campo,valor){
+  const v=V.find(x=>x.id==id); if(!v) return;
+  const body={...v, [campo]:valor};
+  try{ await PUT('/veiculos/'+id,body); await loadAll(); }catch(e){alert(e.message);}
+}
+async function gerarIA(tipo,vid){
+  const v=V.find(x=>x.id==vid); if(!v) return;
+  let ofertaAbertura='';
+  if(tipo==='legenda'){
+    ofertaAbertura=prompt('Oferta de abertura (opcional — ex: "Transferência grátis + tanque cheio"). Deixe em branco se não tiver.','')||'';
+  }
+  abrirModalGenerico('Gerando com IA...','<p style="color:#888;text-align:center;padding:20px">🤖 Pensando... isso leva alguns segundos.</p>');
+  try{
+    const payload={nome:v.nome, ano:v.ano, versao_motor:v.versao_motor, preco:v.preco_pretendido||v.valor_venda||v.valor_compra, diferenciais:v.diferenciais||'', oferta_abertura:ofertaAbertura};
+    const r=await POST('/ia/'+tipo, payload);
+    let html='';
+    if(tipo==='roteiro'){
+      html=`
+        <div style="margin-bottom:14px"><div class="sec-lbl" style="margin-bottom:6px">Diferenciais</div>
+        <textarea readonly rows="4" style="width:100%;background:var(--surface-inset);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px">${r.diferenciais}</textarea>
+        <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="copiarTexto(this,\`${r.diferenciais.replace(/`/g,"'")}\`)">📋 Copiar</button></div>
+        <div><div class="sec-lbl" style="margin-bottom:6px">Perfil do Comprador</div>
+        <textarea readonly rows="4" style="width:100%;background:var(--surface-inset);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px">${r.perfil}</textarea>
+        <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="copiarTexto(this,\`${r.perfil.replace(/`/g,"'")}\`)">📋 Copiar</button></div>`;
+    }else if(tipo==='legenda'){
+      html=`
+        <div style="margin-bottom:14px"><div class="sec-lbl" style="margin-bottom:6px">Legenda Instagram</div>
+        <textarea readonly rows="6" style="width:100%;background:var(--surface-inset);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px">${r.legenda_instagram}</textarea>
+        <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="copiarTexto(this,\`${r.legenda_instagram.replace(/`/g,"'")}\`)">📋 Copiar</button></div>
+        <div><div class="sec-lbl" style="margin-bottom:6px">Legenda Anúncio (Meta Ads)</div>
+        <textarea readonly rows="6" style="width:100%;background:var(--surface-inset);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px">${r.legenda_anuncio}</textarea>
+        <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="copiarTexto(this,\`${r.legenda_anuncio.replace(/`/g,"'")}\`)">📋 Copiar</button></div>`;
+    }else if(tipo==='gancho'){
+      html=r.ganchos.map((g,i)=>`
+        <div style="margin-bottom:10px;padding:10px;background:var(--surface-inset);border:1px solid var(--border);border-radius:8px">
+          <div style="font-size:13px;color:var(--text);margin-bottom:6px">${i+1}. ${g}</div>
+          <button class="btn btn-secondary btn-sm" onclick="copiarTexto(this,\`${g.replace(/`/g,"'")}\`)">📋 Copiar</button>
+        </div>`).join('');
+    }
+    abrirModalGenerico((tipo==='roteiro'?'Roteiro':tipo==='legenda'?'Legenda':'Ganchos de Vídeo')+' — '+v.nome, html);
+  }catch(e){
+    abrirModalGenerico('Erro',`<p style="color:#ff6b6b">${e.message}</p>`);
+  }
+}
+function copiarTexto(btn,texto){
+  navigator.clipboard.writeText(texto).then(()=>{
+    const orig=btn.textContent; btn.textContent='✅ Copiado!';
+    setTimeout(()=>btn.textContent=orig,1500);
+  });
 }
 
 // ═══ CHECKLIST (página) ══════════════════════════════════════
