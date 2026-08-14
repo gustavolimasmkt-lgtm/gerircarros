@@ -501,7 +501,10 @@ tr:hover td{background:var(--surface-2)}
     </div>
 
     <div id="page-checklist" class="page">
-      <div class="header"><div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Checklist</h2><div class="header-sub">Gerencie as tarefas de cada veículo</div></div></div></div>
+      <div class="header">
+        <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Checklist</h2><div class="header-sub">Gerencie as tarefas de cada veículo</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="exportarChecklistPendentes()">📄 Exportar Pendências</button>
+      </div>
       <div class="content">
         <div class="search-bar" style="max-width:340px;margin-bottom:16px">
           <input type="text" id="ck-search" placeholder="Buscar por modelo, ano ou placa..." oninput="renderChecklistPage()">
@@ -2283,6 +2286,39 @@ function copiarTexto(btn,texto){
 }
 
 // ═══ CHECKLIST (página) ══════════════════════════════════════
+async function exportarChecklistPendentes(){
+  const itens=await GET('/checklist-pendentes');
+  if(!itens.length){ alert('Nenhuma tarefa pendente em carro nenhum. Nada pra exportar.'); return; }
+  const porCarro={};
+  itens.forEach(i=>{
+    if(!porCarro[i.veiculo_id]) porCarro[i.veiculo_id]={nome:i.veiculo_nome,placa:i.veiculo_placa,tarefas:[]};
+    porCarro[i.veiculo_id].tarefas.push(i.texto);
+  });
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const w=window.open('','_blank');
+  w.document.write(`
+    <html><head><title>Checklist de Tarefas - ${hoje}</title>
+    <style>
+      body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;color:#111;line-height:1.6}
+      h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:10px}
+      .carro{margin-top:24px;page-break-inside:avoid}
+      .carro h2{font-size:16px;background:#eee;padding:8px 12px;border-radius:6px;margin-bottom:8px}
+      .tarefa{display:flex;align-items:center;gap:10px;padding:6px 4px;border-bottom:1px solid #ddd}
+      .box{width:16px;height:16px;border:2px solid #333;flex-shrink:0}
+      @media print{ .no-print{display:none} }
+    </style></head><body>
+    <div class="no-print" style="text-align:center;margin-bottom:20px">
+      <button onclick="window.print()" style="padding:10px 20px;font-size:14px">🖨️ Imprimir / Salvar PDF</button>
+    </div>
+    <h1>Checklist de Tarefas Pendentes — ${hoje}</h1>
+    ${Object.values(porCarro).map(c=>`
+      <div class="carro">
+        <h2>🚗 ${c.nome}${c.placa?' — '+c.placa:''}</h2>
+        ${c.tarefas.map(t=>`<div class="tarefa"><div class="box"></div><div>${t}</div></div>`).join('')}
+      </div>`).join('')}
+    </body></html>`);
+  w.document.close();
+}
 function renderChecklistPage(){
   const q=(document.getElementById('ck-search')?.value||'').toLowerCase();
   let lista=V.filter(v=>v.status!=='Vendido');
