@@ -1529,8 +1529,9 @@ function imprimirPromissoria(prom,parcelas,cliente,veiculo){
   w.document.write(`
     <html><head><title>Nota Promissória - ${cli?cli.nome:prom.cliente_nome_avulso||''}</title>
     <style>
-      body{font-family:Georgia,serif;max-width:700px;margin:40px auto;color:#111;line-height:1.7;position:relative}
+      body{font-family:Georgia,serif;max-width:700px;margin:40px auto;color:#111;line-height:1.7;position:relative;padding-bottom:70px}
       .marca-dagua{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;opacity:0.08;z-index:-1;pointer-events:none}
+      .logo-rodape{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:130px;opacity:0.85}
       .nota{border:2px solid #333;padding:30px;margin-bottom:30px;page-break-after:always}
       h1{font-size:20px;text-align:center;letter-spacing:2px}
       .valor{font-size:28px;text-align:center;margin:20px 0;font-weight:bold}
@@ -1539,6 +1540,7 @@ function imprimirPromissoria(prom,parcelas,cliente,veiculo){
       @media print{ .no-print{display:none} .marca-dagua{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
     </style></head><body>
     <img class="marca-dagua" src="/assets/logo-marca-dagua.png" alt="">
+    <img class="logo-rodape" src="/assets/logo-marca-dagua.png" alt="">
     <div class="no-print" style="text-align:center;margin-bottom:20px">
       <button onclick="window.print()" style="padding:10px 20px;font-size:14px">🖨️ Imprimir / Salvar PDF</button>
     </div>
@@ -1556,6 +1558,7 @@ function imprimirPromissoria(prom,parcelas,cliente,veiculo){
         <div class="linha">Emitida em: ${hoje}</div>
         <div class="assinatura">Assinatura do Emitente</div>
       </div>`).join('')}
+    <div style="text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #ddd"><img src="/assets/logo-marca-dagua.png" alt="" style="width:150px;opacity:0.9"></div>
     </body></html>`);
   w.document.close();
 }
@@ -2301,8 +2304,9 @@ async function exportarChecklistPendentes(){
   w.document.write(`
     <html><head><title>Checklist de Tarefas - ${hoje}</title>
     <style>
-      body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;color:#111;line-height:1.6;position:relative}
+      body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;color:#111;line-height:1.6;position:relative;padding-bottom:70px}
       .marca-dagua{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;opacity:0.08;z-index:-1;pointer-events:none}
+      .logo-rodape{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:150px;opacity:0.85}
       h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:10px}
       .carro{margin-top:24px;page-break-inside:avoid}
       .carro h2{font-size:16px;background:#eee;padding:8px 12px;border-radius:6px;margin-bottom:8px}
@@ -2311,6 +2315,7 @@ async function exportarChecklistPendentes(){
       @media print{ .no-print{display:none} .marca-dagua{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
     </style></head><body>
     <img class="marca-dagua" src="/assets/logo-marca-dagua.png" alt="">
+    <img class="logo-rodape" src="/assets/logo-marca-dagua.png" alt="">
     <div class="no-print" style="text-align:center;margin-bottom:20px">
       <button onclick="window.print()" style="padding:10px 20px;font-size:14px">🖨️ Imprimir / Salvar PDF</button>
     </div>
@@ -2320,6 +2325,7 @@ async function exportarChecklistPendentes(){
         <h2>🚗 ${c.nome}${c.placa?' — '+c.placa:''}</h2>
         ${c.tarefas.map(t=>`<div class="tarefa"><div class="box"></div><div>${t}</div></div>`).join('')}
       </div>`).join('')}
+    <div style="text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #ddd"><img src="/assets/logo-marca-dagua.png" alt="" style="width:150px;opacity:0.9"></div>
     </body></html>`);
   w.document.close();
 }
