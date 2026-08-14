@@ -652,6 +652,14 @@ app.delete('/api/clientes/:id', (req, res) => {
 app.get('/api/veiculos/:id/checklist', (req, res) => {
   ok(res, db.prepare('SELECT * FROM checklist_itens WHERE veiculo_id=? ORDER BY criado_em').all(req.params.id));
 });
+app.get('/api/checklist-pendentes', (_, res) => {
+  ok(res, db.prepare(`
+    SELECT c.id, c.texto, c.veiculo_id, v.nome as veiculo_nome, v.placa as veiculo_placa
+    FROM checklist_itens c JOIN veiculos v ON v.id = c.veiculo_id
+    WHERE c.concluido = 0 AND v.status != 'Vendido'
+    ORDER BY v.nome, c.criado_em
+  `).all());
+});
 app.post('/api/veiculos/:id/checklist', (req, res) => {
   const { texto } = req.body;
   if (!texto) return err(res, 'Texto obrigatorio');
