@@ -41,6 +41,8 @@ db.exec(`
     email TEXT UNIQUE NOT NULL,
     senha_hash TEXT NOT NULL,
     recovery_code_hash TEXT,
+    is_admin INTEGER DEFAULT 0,
+    ve_financeiro INTEGER DEFAULT 0,
     criado_em TEXT DEFAULT (datetime('now'))
   );
 
@@ -121,6 +123,39 @@ db.exec(`
     criado_em TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS tipos_documento (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    ativo INTEGER DEFAULT 1,
+    ordem INTEGER DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS veiculo_documentos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    veiculo_id INTEGER NOT NULL REFERENCES veiculos(id) ON DELETE CASCADE,
+    tipo_documento_id INTEGER NOT NULL REFERENCES tipos_documento(id),
+    concluido INTEGER DEFAULT 0,
+    concluido_em TEXT
+  );
+  CREATE TABLE IF NOT EXISTS tipos_preparacao (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    ativo INTEGER DEFAULT 1,
+    ordem INTEGER DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS veiculo_preparacao (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    veiculo_id INTEGER NOT NULL REFERENCES veiculos(id) ON DELETE CASCADE,
+    tipo_preparacao_id INTEGER NOT NULL REFERENCES tipos_preparacao(id),
+    concluido INTEGER DEFAULT 0,
+    concluido_em TEXT
+  );
+  CREATE TABLE IF NOT EXISTS permissoes_usuario (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    modulo TEXT NOT NULL,
+    UNIQUE(usuario_id, modulo)
+  );
+
   CREATE TABLE IF NOT EXISTS parcelas_venda (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     veiculo_id INTEGER NOT NULL REFERENCES veiculos(id) ON DELETE CASCADE,
@@ -177,8 +212,28 @@ for (const col of [
   "ALTER TABLE veiculos ADD COLUMN versao_motor TEXT",
   "ALTER TABLE veiculos ADD COLUMN postado_instagram INTEGER DEFAULT 0",
   "ALTER TABLE veiculos ADD COLUMN anuncio_ativo INTEGER DEFAULT 0",
+  "ALTER TABLE veiculos ADD COLUMN status_anuncio TEXT DEFAULT 'nenhum'",
+  "ALTER TABLE usuarios ADD COLUMN is_admin INTEGER DEFAULT 0",
+  "ALTER TABLE usuarios ADD COLUMN ve_financeiro INTEGER DEFAULT 0",
 ]) {
   try { db.exec(col); } catch (e) { /* coluna já existe, ignora */ }
+}
+
+// garante que sempre existe pelo menos um admin: promove o usuario mais antigo se ninguem for admin ainda
+const semAdmin = db.prepare('SELECT COUNT(*) as n FROM usuarios WHERE is_admin=1').get().n === 0;
+if (semAdmin) {
+  const maisAntigo = db.prepare('SELECT id FROM usuarios ORDER BY criado_em ASC LIMIT 1').get();
+  if (maisAntigo) db.prepare('UPDATE usuarios SET is_admin=1, ve_financeiro=1 WHERE id=?').run(maisAntigo.id);
+}
+
+// catalogo padrao de documentos e preparacao, so semeia se estiver vazio
+if (db.prepare('SELECT COUNT(*) as n FROM tipos_documento').get().n === 0) {
+  const insDoc = db.prepare('INSERT INTO tipos_documento (nome, ordem) VALUES (?,?)');
+  ['CRV Impresso', 'CRV em PDF', 'Procuração'].forEach((n, i) => insDoc.run(n, i));
+}
+if (db.prepare('SELECT COUNT(*) as n FROM tipos_preparacao').get().n === 0) {
+  const insPrep = db.prepare('INSERT INTO tipos_preparacao (nome, ordem) VALUES (?,?)');
+  ['Lavagem Fora', 'Lavagem Dentro', 'Higienização de Estofados'].forEach((n, i) => insPrep.run(n, i));
 }
 
 const ok  = (res, data) => res.json({ ok: true, data });
@@ -215,23 +270,40 @@ function requireAuth(req, res, next) {
   if (!token) return err(res, 'Nao autenticado', 401);
   const sess = db.prepare('SELECT * FROM sessoes WHERE token=?').get(token);
   if (!sess || new Date(sess.expira_em) < new Date()) return err(res, 'Sessao expirada', 401);
-  const user = db.prepare('SELECT id, nome, email FROM usuarios WHERE id=?').get(sess.usuario_id);
+  const user = db.prepare('SELECT id, nome, email, is_admin, ve_financeiro FROM usuarios WHERE id=?').get(sess.usuario_id);
   if (!user) return err(res, 'Usuario nao encontrado', 401);
+  user.is_admin = !!user.is_admin;
+  user.ve_financeiro = !!user.ve_financeiro;
+  user.modulos = db.prepare('SELECT modulo FROM permissoes_usuario WHERE usuario_id=?').all(user.id).map(r => r.modulo);
   req.user = user;
+  next();
+}
+function temModulo(user, modulo) { return user.is_admin || user.modulos.includes(modulo); }
+function requireModulo(modulo) {
+  return (req, res, next) => {
+    if (!temModulo(req.user, modulo)) return err(res, 'Sem permissao para este modulo', 403);
+    next();
+  };
+}
+function requireFinanceiro(req, res, next) {
+  if (!req.user.is_admin && !req.user.ve_financeiro) return err(res, 'Sem permissao para ver dados financeiros', 403);
   next();
 }
 
 app.post('/api/auth/registrar', (req, res) => {
-  const { nome, email, senha } = req.body;
+  const { nome, email, senha, modulos, ve_financeiro } = req.body;
   if (!nome || !email || !senha) return err(res, 'Nome, email e senha obrigatorios');
   if (senha.length < 6) return err(res, 'Senha precisa de ao menos 6 caracteres');
 
   const totalUsuarios = db.prepare('SELECT COUNT(*) as n FROM usuarios').get().n;
-  if (totalUsuarios > 0) {
+  const ehPrimeiroUsuario = totalUsuarios === 0;
+  if (!ehPrimeiroUsuario) {
     const token = req.cookies.sessao;
     const sess = token && db.prepare('SELECT * FROM sessoes WHERE token=?').get(token);
     const logado = sess && new Date(sess.expira_em) >= new Date();
     if (!logado) return err(res, 'Cadastro fechado. Peça para quem já tem acesso te cadastrar.', 403);
+    const quemCria = logado && db.prepare('SELECT is_admin FROM usuarios WHERE id=?').get(sess.usuario_id);
+    if (!quemCria || !quemCria.is_admin) return err(res, 'Só um administrador pode cadastrar novos usuarios.', 403);
   }
 
   const existe = db.prepare('SELECT id FROM usuarios WHERE email=?').get(email.toLowerCase());
@@ -239,8 +311,12 @@ app.post('/api/auth/registrar', (req, res) => {
   const hash = bcrypt.hashSync(senha, 10);
   const recoveryCode = crypto.randomBytes(6).toString('hex').toUpperCase().match(/.{1,4}/g).join('-'); // ex: A1B2-C3D4-E5F6
   const recoveryHash = bcrypt.hashSync(recoveryCode, 10);
-  const r = db.prepare('INSERT INTO usuarios (nome, email, senha_hash, recovery_code_hash) VALUES (?,?,?,?)')
-    .run(nome, email.toLowerCase(), hash, recoveryHash);
+  const r = db.prepare('INSERT INTO usuarios (nome, email, senha_hash, recovery_code_hash, is_admin, ve_financeiro) VALUES (?,?,?,?,?,?)')
+    .run(nome, email.toLowerCase(), hash, recoveryHash, ehPrimeiroUsuario ? 1 : 0, (ehPrimeiroUsuario || ve_financeiro) ? 1 : 0);
+  if (!ehPrimeiroUsuario && Array.isArray(modulos)) {
+    const insMod = db.prepare('INSERT OR IGNORE INTO permissoes_usuario (usuario_id, modulo) VALUES (?,?)');
+    modulos.forEach(m => insMod.run(r.lastInsertRowid, m));
+  }
   ok(res, { id: r.lastInsertRowid, nome, email: email.toLowerCase(), recoveryCode });
 });
 
@@ -289,23 +365,56 @@ app.post('/api/auth/gerar-codigo-recuperacao', (req, res) => {
   ok(res, { novoCodigo });
 });
 
+// ---------- USUARIOS / PERMISSOES (so admin) ----------
+app.get('/api/usuarios', (req, res) => {
+  if (!req.user.is_admin) return err(res, 'Só um administrador pode ver esta lista', 403);
+  const usuarios = db.prepare('SELECT id, nome, email, is_admin, ve_financeiro, criado_em FROM usuarios ORDER BY criado_em').all();
+  const todasPermissoes = db.prepare('SELECT usuario_id, modulo FROM permissoes_usuario').all();
+  ok(res, usuarios.map(u => ({
+    ...u, is_admin: !!u.is_admin, ve_financeiro: !!u.ve_financeiro,
+    modulos: todasPermissoes.filter(p => p.usuario_id === u.id).map(p => p.modulo)
+  })));
+});
+app.put('/api/usuarios/:id/permissoes', (req, res) => {
+  if (!req.user.is_admin) return err(res, 'Só um administrador pode alterar permissões', 403);
+  const alvo = db.prepare('SELECT * FROM usuarios WHERE id=?').get(req.params.id);
+  if (!alvo) return err(res, 'Usuario nao encontrado', 404);
+  if (alvo.is_admin) return err(res, 'Não é possível alterar permissões de um administrador.', 403);
+  const { modulos, ve_financeiro } = req.body;
+  db.prepare('UPDATE usuarios SET ve_financeiro=? WHERE id=?').run(ve_financeiro ? 1 : 0, req.params.id);
+  db.prepare('DELETE FROM permissoes_usuario WHERE usuario_id=?').run(req.params.id);
+  if (Array.isArray(modulos)) {
+    const insMod = db.prepare('INSERT OR IGNORE INTO permissoes_usuario (usuario_id, modulo) VALUES (?,?)');
+    modulos.forEach(m => insMod.run(req.params.id, m));
+  }
+  ok(res, { id: req.params.id });
+});
+app.delete('/api/usuarios/:id', (req, res) => {
+  if (!req.user.is_admin) return err(res, 'Só um administrador pode excluir usuarios', 403);
+  const alvo = db.prepare('SELECT * FROM usuarios WHERE id=?').get(req.params.id);
+  if (!alvo) return err(res, 'Usuario nao encontrado', 404);
+  if (alvo.is_admin) return err(res, 'Não é possível excluir um administrador.', 403);
+  db.prepare('DELETE FROM usuarios WHERE id=?').run(req.params.id);
+  ok(res, { id: req.params.id });
+});
+
 // ---------- SOCIOS ----------
-app.get('/api/socios', (_, res) => ok(res, db.prepare('SELECT * FROM socios ORDER BY nome').all()));
-app.post('/api/socios', (req, res) => {
+app.get('/api/socios', requireModulo('socios'), (_, res) => ok(res, db.prepare('SELECT * FROM socios ORDER BY nome').all()));
+app.post('/api/socios', requireModulo('socios'), (req, res) => {
   const { nome, tel, cpf, email, pct_padrao, obs } = req.body;
   if (!nome) return err(res, 'Nome obrigatorio');
   const r = db.prepare('INSERT INTO socios (nome,tel,cpf,email,pct_padrao,obs) VALUES (?,?,?,?,?,?)')
     .run(nome, tel||'', cpf||'', email||'', pct_padrao ?? 50, obs||'');
   ok(res, db.prepare('SELECT * FROM socios WHERE id=?').get(r.lastInsertRowid));
 });
-app.put('/api/socios/:id', (req, res) => {
+app.put('/api/socios/:id', requireModulo('socios'), (req, res) => {
   const { nome, tel, cpf, email, pct_padrao, obs } = req.body;
   if (!nome) return err(res, 'Nome obrigatorio');
   db.prepare('UPDATE socios SET nome=?,tel=?,cpf=?,email=?,pct_padrao=?,obs=? WHERE id=?')
     .run(nome, tel||'', cpf||'', email||'', pct_padrao ?? 50, obs||'', req.params.id);
   ok(res, db.prepare('SELECT * FROM socios WHERE id=?').get(req.params.id));
 });
-app.delete('/api/socios/:id', (req, res) => {
+app.delete('/api/socios/:id', requireModulo('socios'), (req, res) => {
   if (db.prepare('SELECT id FROM veiculos WHERE socio_id=? LIMIT 1').get(req.params.id))
     return err(res, 'Socio vinculado a veiculos.');
   db.prepare('DELETE FROM socios WHERE id=?').run(req.params.id);
@@ -313,27 +422,33 @@ app.delete('/api/socios/:id', (req, res) => {
 });
 
 // ---------- VEICULOS ----------
-app.get('/api/veiculos', (_, res) => {
+app.get('/api/veiculos', (req, res) => {
   const veiculos = db.prepare(`
     SELECT v.*, c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj
     FROM veiculos v LEFT JOIN clientes c ON c.id = v.cliente_id
     ORDER BY v.criado_em DESC
   `).all();
   const hoje = new Date();
+  const CAMPOS_FINANCEIROS = ['valor_compra','valor_venda','troca','valor_minimo_dono','preco_pretendido',
+    'entrada','parcelas','taxa_comissao','forma_pagamento','tem_socio','socio_id','socio_pct'];
   const comCalculos = veiculos.map(v => {
     const dias_desde_gravacao = v.data_gravacao
       ? Math.floor((hoje - new Date(v.data_gravacao)) / 86400000) : null;
-    return {
+    let vv = {
       ...v,
       dias_desde_gravacao,
       alerta_material: v.material_pronto === 1 && dias_desde_gravacao !== null
         && dias_desde_gravacao >= 15 && v.status !== 'Vendido'
     };
+    if (!req.user.is_admin && !req.user.ve_financeiro) {
+      CAMPOS_FINANCEIROS.forEach(c => delete vv[c]);
+    }
+    return vv;
   });
   ok(res, comCalculos);
 });
 
-app.post('/api/veiculos', (req, res) => {
+app.post('/api/veiculos', requireModulo('veiculos'), (req, res) => {
   try {
   const b = req.body;
   const consig = b.tipo_aquisicao === 'consignacao';
@@ -359,6 +474,9 @@ app.post('/api/veiculos', (req, res) => {
   saveCustos(r.lastInsertRowid, b.custos);
   const novo = db.prepare('SELECT * FROM veiculos WHERE id=?').get(r.lastInsertRowid);
   saveParcelas(r.lastInsertRowid, novo);
+  const tiposDoc = db.prepare('SELECT id FROM tipos_documento WHERE ativo=1').all();
+  const insDoc = db.prepare('INSERT INTO veiculo_documentos (veiculo_id, tipo_documento_id) VALUES (?,?)');
+  tiposDoc.forEach(t => insDoc.run(r.lastInsertRowid, t.id));
   db.prepare('INSERT INTO veiculos_auditoria (veiculo_id,usuario_id,acao,dados_depois) VALUES (?,?,?,?)')
     .run(r.lastInsertRowid, req.user.id, 'criado', JSON.stringify(novo));
   ok(res, novo);
@@ -402,7 +520,7 @@ app.put('/api/veiculos/:id', (req, res) => {
   } catch (e) { err(res, 'Erro ao editar veiculo: ' + e.message, 500); }
 });
 
-app.delete('/api/veiculos/:id', (req, res) => {
+app.delete('/api/veiculos/:id', requireModulo('veiculos'), (req, res) => {
   const antes = db.prepare('SELECT * FROM veiculos WHERE id=?').get(req.params.id);
   if (!antes) return err(res, 'Veiculo nao encontrado', 404);
   const fotos = db.prepare('SELECT arquivo FROM veiculo_fotos WHERE veiculo_id=?').all(req.params.id);
@@ -480,10 +598,10 @@ app.put('/api/veiculos/:id/fipe', (req, res) => {
 });
 
 // ---------- CUSTOS ----------
-app.get('/api/custos', (_, res) => ok(res, db.prepare('SELECT * FROM custos ORDER BY veiculo_id, criado_em').all()));
+app.get('/api/custos', requireFinanceiro, (_, res) => ok(res, db.prepare('SELECT * FROM custos ORDER BY veiculo_id, criado_em').all()));
 
 // ---------- PARCELAS (CONTAS A RECEBER) ----------
-app.get('/api/parcelas', (_, res) => {
+app.get('/api/parcelas', requireModulo('receber'), (_, res) => {
   const daVenda = db.prepare(`
     SELECT p.id, p.numero, p.valor, p.vencimento, p.pago, p.pago_em,
            v.nome as veiculo_nome, v.placa as veiculo_placa,
@@ -505,7 +623,7 @@ app.get('/api/parcelas', (_, res) => {
   `).all();
   ok(res, [...daVenda, ...daPromissoria].sort((a,b)=>a.vencimento.localeCompare(b.vencimento)));
 });
-app.put('/api/receber/:origem/:id', (req, res) => {
+app.put('/api/receber/:origem/:id', requireModulo('receber'), (req, res) => {
   const tabela = req.params.origem === 'promissoria' ? 'promissoria_parcelas' : 'parcelas_venda';
   const item = db.prepare(`SELECT * FROM ${tabela} WHERE id=?`).get(req.params.id);
   if (!item) return err(res, 'Parcela nao encontrada', 404);
@@ -514,7 +632,7 @@ app.put('/api/receber/:origem/:id', (req, res) => {
     .run(pago, pago ? new Date().toISOString().slice(0,10) : null, req.params.id);
   ok(res, db.prepare(`SELECT * FROM ${tabela} WHERE id=?`).get(req.params.id));
 });
-app.put('/api/parcelas/:id', (req, res) => {
+app.put('/api/parcelas/:id', requireModulo('receber'), (req, res) => {
   const item = db.prepare('SELECT * FROM parcelas_venda WHERE id=?').get(req.params.id);
   if (!item) return err(res, 'Parcela nao encontrada', 404);
   const pago = req.body.pago ? 1 : 0;
@@ -537,7 +655,7 @@ function gerarParcelasPromissoria(promId, valorTotal, parcelas, dataEmissao) {
   }
 }
 
-app.get('/api/promissorias', (_, res) => {
+app.get('/api/promissorias', requireModulo('promissorias'), (_, res) => {
   const rows = db.prepare(`
     SELECT p.*, v.nome as veiculo_nome, v.placa as veiculo_placa,
            c.nome as cliente_nome_cad, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj, c.endereco as cliente_endereco
@@ -554,7 +672,7 @@ app.get('/api/promissorias', (_, res) => {
   })));
 });
 
-app.post('/api/promissorias', (req, res) => {
+app.post('/api/promissorias', requireModulo('promissorias'), (req, res) => {
   const b = req.body;
   if (!b.valor_total || b.valor_total <= 0) return err(res, 'Valor total obrigatorio');
   if (!b.cliente_id && !b.cliente_nome_avulso) return err(res, 'Informe o cliente ou o nome de quem vai assinar');
@@ -594,7 +712,7 @@ app.get('/api/promissorias/:id', (req, res) => {
   ok(res, { promissoria: prom, parcelas, cliente, veiculo });
 });
 
-app.put('/api/promissorias/:id', (req, res) => {
+app.put('/api/promissorias/:id', requireModulo('promissorias'), (req, res) => {
   const prom = db.prepare('SELECT * FROM promissorias WHERE id=?').get(req.params.id);
   if (!prom) return err(res, 'Promissoria nao encontrada', 404);
   const b = req.body;
@@ -605,7 +723,7 @@ app.put('/api/promissorias/:id', (req, res) => {
          req.params.id);
   ok(res, db.prepare('SELECT * FROM promissorias WHERE id=?').get(req.params.id));
 });
-app.delete('/api/promissorias/:id', (req, res) => {
+app.delete('/api/promissorias/:id', requireModulo('promissorias'), (req, res) => {
   db.prepare('DELETE FROM promissorias WHERE id=?').run(req.params.id);
   ok(res, { id: req.params.id });
 });
@@ -626,22 +744,22 @@ app.put('/api/promissoria-parcelas/:id', (req, res) => {
 });
 
 // ---------- CLIENTES ----------
-app.get('/api/clientes', (_, res) => ok(res, db.prepare('SELECT * FROM clientes ORDER BY nome').all()));
-app.post('/api/clientes', (req, res) => {
+app.get('/api/clientes', requireModulo('clientes'), (_, res) => ok(res, db.prepare('SELECT * FROM clientes ORDER BY nome').all()));
+app.post('/api/clientes', requireModulo('clientes'), (req, res) => {
   const { tipo, nome, telefone, email, cpf_cnpj, endereco, obs } = req.body;
   if (!nome) return err(res, 'Nome obrigatorio');
   const r = db.prepare('INSERT INTO clientes (tipo,nome,telefone,email,cpf_cnpj,endereco,obs) VALUES (?,?,?,?,?,?,?)')
     .run(tipo || 'cliente', nome, telefone||'', email||'', cpf_cnpj||'', endereco||'', obs||'');
   ok(res, db.prepare('SELECT * FROM clientes WHERE id=?').get(r.lastInsertRowid));
 });
-app.put('/api/clientes/:id', (req, res) => {
+app.put('/api/clientes/:id', requireModulo('clientes'), (req, res) => {
   const { tipo, nome, telefone, email, cpf_cnpj, endereco, obs } = req.body;
   if (!nome) return err(res, 'Nome obrigatorio');
   db.prepare('UPDATE clientes SET tipo=?,nome=?,telefone=?,email=?,cpf_cnpj=?,endereco=?,obs=? WHERE id=?')
     .run(tipo || 'cliente', nome, telefone||'', email||'', cpf_cnpj||'', endereco||'', obs||'', req.params.id);
   ok(res, db.prepare('SELECT * FROM clientes WHERE id=?').get(req.params.id));
 });
-app.delete('/api/clientes/:id', (req, res) => {
+app.delete('/api/clientes/:id', requireModulo('clientes'), (req, res) => {
   if (db.prepare('SELECT id FROM veiculos WHERE cliente_id=? LIMIT 1').get(req.params.id))
     return err(res, 'Cliente vinculado a uma venda, nao pode ser excluido.');
   db.prepare('DELETE FROM clientes WHERE id=?').run(req.params.id);
@@ -649,10 +767,10 @@ app.delete('/api/clientes/:id', (req, res) => {
 });
 
 // ---------- CHECKLIST ----------
-app.get('/api/veiculos/:id/checklist', (req, res) => {
+app.get('/api/veiculos/:id/checklist', requireModulo('checklist'), (req, res) => {
   ok(res, db.prepare('SELECT * FROM checklist_itens WHERE veiculo_id=? ORDER BY criado_em').all(req.params.id));
 });
-app.get('/api/checklist-pendentes', (_, res) => {
+app.get('/api/checklist-pendentes', requireModulo('checklist'), (_, res) => {
   ok(res, db.prepare(`
     SELECT c.id, c.texto, c.veiculo_id, v.nome as veiculo_nome, v.placa as veiculo_placa
     FROM checklist_itens c JOIN veiculos v ON v.id = c.veiculo_id
@@ -660,7 +778,7 @@ app.get('/api/checklist-pendentes', (_, res) => {
     ORDER BY v.nome, c.criado_em
   `).all());
 });
-app.post('/api/veiculos/:id/checklist', (req, res) => {
+app.post('/api/veiculos/:id/checklist', requireModulo('checklist'), (req, res) => {
   const { texto } = req.body;
   if (!texto) return err(res, 'Texto obrigatorio');
   const veiculo = db.prepare('SELECT id FROM veiculos WHERE id=?').get(req.params.id);
@@ -668,7 +786,7 @@ app.post('/api/veiculos/:id/checklist', (req, res) => {
   const r = db.prepare('INSERT INTO checklist_itens (veiculo_id, texto) VALUES (?,?)').run(req.params.id, texto);
   ok(res, db.prepare('SELECT * FROM checklist_itens WHERE id=?').get(r.lastInsertRowid));
 });
-app.put('/api/checklist/:id', (req, res) => {
+app.put('/api/checklist/:id', requireModulo('checklist'), (req, res) => {
   const item = db.prepare('SELECT * FROM checklist_itens WHERE id=?').get(req.params.id);
   if (!item) return err(res, 'Item nao encontrado', 404);
   const concluido = req.body.concluido !== undefined ? (req.body.concluido ? 1 : 0) : item.concluido;
@@ -676,7 +794,7 @@ app.put('/api/checklist/:id', (req, res) => {
   db.prepare('UPDATE checklist_itens SET texto=?, concluido=? WHERE id=?').run(texto, concluido, req.params.id);
   ok(res, db.prepare('SELECT * FROM checklist_itens WHERE id=?').get(req.params.id));
 });
-app.delete('/api/checklist/:id', (req, res) => {
+app.delete('/api/checklist/:id', requireModulo('checklist'), (req, res) => {
   db.prepare('DELETE FROM checklist_itens WHERE id=?').run(req.params.id);
   ok(res, { id: req.params.id });
 });
@@ -690,6 +808,93 @@ app.get('/api/alertas', (_, res) => {
     .map(v => ({ ...v, dias: Math.floor((hoje - new Date(v.data_gravacao)) / 86400000) }))
     .filter(v => v.dias >= 15);
   ok(res, alertas);
+});
+
+// ---------- DOCUMENTACAO ----------
+app.get('/api/tipos-documento', requireModulo('documentacao'), (_, res) => {
+  ok(res, db.prepare('SELECT * FROM tipos_documento WHERE ativo=1 ORDER BY ordem, nome').all());
+});
+app.post('/api/tipos-documento', requireModulo('documentacao'), (req, res) => {
+  if (!req.body.nome) return err(res, 'Nome obrigatorio');
+  const maxOrdem = db.prepare('SELECT COALESCE(MAX(ordem),0) as m FROM tipos_documento').get().m;
+  const r = db.prepare('INSERT INTO tipos_documento (nome, ordem) VALUES (?,?)').run(req.body.nome, maxOrdem + 1);
+  // adiciona pendente em todo carro ativo que ainda nao tem esse documento
+  const veiculos = db.prepare("SELECT id FROM veiculos WHERE status != 'Vendido'").all();
+  const ins = db.prepare('INSERT INTO veiculo_documentos (veiculo_id, tipo_documento_id) VALUES (?,?)');
+  veiculos.forEach(v => ins.run(v.id, r.lastInsertRowid));
+  ok(res, db.prepare('SELECT * FROM tipos_documento WHERE id=?').get(r.lastInsertRowid));
+});
+app.delete('/api/tipos-documento/:id', requireModulo('documentacao'), (req, res) => {
+  db.prepare('UPDATE tipos_documento SET ativo=0 WHERE id=?').run(req.params.id);
+  ok(res, { id: req.params.id });
+});
+app.get('/api/veiculos/:id/documentos', requireModulo('documentacao'), (req, res) => {
+  ok(res, db.prepare(`
+    SELECT vd.*, td.nome as tipo_nome FROM veiculo_documentos vd
+    JOIN tipos_documento td ON td.id = vd.tipo_documento_id
+    WHERE vd.veiculo_id=? AND td.ativo=1 ORDER BY td.ordem, td.nome
+  `).all(req.params.id));
+});
+app.put('/api/documentos/:id', requireModulo('documentacao'), (req, res) => {
+  const item = db.prepare('SELECT * FROM veiculo_documentos WHERE id=?').get(req.params.id);
+  if (!item) return err(res, 'Documento nao encontrado', 404);
+  const concluido = req.body.concluido ? 1 : 0;
+  db.prepare('UPDATE veiculo_documentos SET concluido=?, concluido_em=? WHERE id=?')
+    .run(concluido, concluido ? new Date().toISOString().slice(0,10) : null, req.params.id);
+  ok(res, db.prepare('SELECT * FROM veiculo_documentos WHERE id=?').get(req.params.id));
+});
+
+// ---------- PREPARACAO ----------
+app.get('/api/tipos-preparacao', requireModulo('preparacao'), (_, res) => {
+  ok(res, db.prepare('SELECT * FROM tipos_preparacao WHERE ativo=1 ORDER BY ordem, nome').all());
+});
+app.post('/api/tipos-preparacao', requireModulo('preparacao'), (req, res) => {
+  if (!req.body.nome) return err(res, 'Nome obrigatorio');
+  const maxOrdem = db.prepare('SELECT COALESCE(MAX(ordem),0) as m FROM tipos_preparacao').get().m;
+  const r = db.prepare('INSERT INTO tipos_preparacao (nome, ordem) VALUES (?,?)').run(req.body.nome, maxOrdem + 1);
+  ok(res, db.prepare('SELECT * FROM tipos_preparacao WHERE id=?').get(r.lastInsertRowid));
+});
+app.delete('/api/tipos-preparacao/:id', requireModulo('preparacao'), (req, res) => {
+  db.prepare('UPDATE tipos_preparacao SET ativo=0 WHERE id=?').run(req.params.id);
+  ok(res, { id: req.params.id });
+});
+app.get('/api/veiculos/:id/preparacao', requireModulo('preparacao'), (req, res) => {
+  ok(res, db.prepare(`
+    SELECT vp.*, tp.nome as tipo_nome FROM veiculo_preparacao vp
+    JOIN tipos_preparacao tp ON tp.id = vp.tipo_preparacao_id
+    WHERE vp.veiculo_id=? AND tp.ativo=1 ORDER BY tp.ordem, tp.nome
+  `).all(req.params.id));
+});
+app.post('/api/veiculos/:id/preparacao', requireModulo('preparacao'), (req, res) => {
+  if (!req.body.tipo_preparacao_id) return err(res, 'tipo_preparacao_id obrigatorio');
+  const jaTem = db.prepare('SELECT id FROM veiculo_preparacao WHERE veiculo_id=? AND tipo_preparacao_id=?')
+    .get(req.params.id, req.body.tipo_preparacao_id);
+  if (jaTem) return err(res, 'Esse servico ja foi selecionado pra esse carro.');
+  const r = db.prepare('INSERT INTO veiculo_preparacao (veiculo_id, tipo_preparacao_id) VALUES (?,?)')
+    .run(req.params.id, req.body.tipo_preparacao_id);
+  ok(res, db.prepare('SELECT * FROM veiculo_preparacao WHERE id=?').get(r.lastInsertRowid));
+});
+app.put('/api/preparacao/:id', requireModulo('preparacao'), (req, res) => {
+  const item = db.prepare('SELECT * FROM veiculo_preparacao WHERE id=?').get(req.params.id);
+  if (!item) return err(res, 'Item nao encontrado', 404);
+  const concluido = req.body.concluido ? 1 : 0;
+  db.prepare('UPDATE veiculo_preparacao SET concluido=?, concluido_em=? WHERE id=?')
+    .run(concluido, concluido ? new Date().toISOString().slice(0,10) : null, req.params.id);
+  ok(res, db.prepare('SELECT * FROM veiculo_preparacao WHERE id=?').get(req.params.id));
+});
+app.delete('/api/preparacao/:id', requireModulo('preparacao'), (req, res) => {
+  db.prepare('DELETE FROM veiculo_preparacao WHERE id=?').run(req.params.id);
+  ok(res, { id: req.params.id });
+});
+app.get('/api/preparacao-pendentes', requireModulo('preparacao'), (_, res) => {
+  ok(res, db.prepare(`
+    SELECT vp.id, vp.veiculo_id, tp.nome as tipo_nome, v.nome as veiculo_nome, v.placa as veiculo_placa
+    FROM veiculo_preparacao vp
+    JOIN tipos_preparacao tp ON tp.id = vp.tipo_preparacao_id
+    JOIN veiculos v ON v.id = vp.veiculo_id
+    WHERE vp.concluido = 0 AND v.status != 'Vendido'
+    ORDER BY v.nome, tp.nome
+  `).all());
 });
 
 // ---------- IA (Anthropic) ----------
@@ -735,7 +940,7 @@ async function chamarClaude(system, user) {
   catch (e) { throw new Error('A IA respondeu em formato inesperado: ' + texto.slice(0,200)); }
 }
 
-app.post('/api/ia/:tipo', async (req, res) => {
+app.post('/api/ia/:tipo', requireModulo('marketing'), async (req, res) => {
   const gerador = PROMPTS_IA[req.params.tipo];
   if (!gerador) return err(res, 'Tipo de geracao invalido');
   try {
