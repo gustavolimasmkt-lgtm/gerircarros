@@ -333,21 +333,24 @@ tr:hover td{background:var(--surface-2)}
     </div>
     <nav class="nav">
       <div class="nav-section">Principal</div>
-      <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="icon">📊</span> Dashboard</div>
-      <div class="nav-item" onclick="showPage('veiculos',this)"><span class="icon">🚘</span> Veículos</div>
-      <div class="nav-item" onclick="showPage('simulador',this)"><span class="icon">🧮</span> Simulador</div>
-      <div class="nav-item" onclick="showPage('relatorio',this)"><span class="icon">📈</span> Relatório</div>
+      <div class="nav-item active" data-modulo="dashboard" onclick="showPage('dashboard',this)"><span class="icon">📊</span> Dashboard</div>
+      <div class="nav-item" data-modulo="veiculos" onclick="showPage('veiculos',this)"><span class="icon">🚘</span> Veículos</div>
+      <div class="nav-item" data-modulo="simulador" onclick="showPage('simulador',this)"><span class="icon">🧮</span> Simulador</div>
+      <div class="nav-item" data-modulo="relatorio" onclick="showPage('relatorio',this)"><span class="icon">📈</span> Relatório</div>
       <div class="nav-section">Operação</div>
-      <div class="nav-item" onclick="showPage('checklist',this)"><span class="icon">☑️</span> Checklist</div>
-      <div class="nav-item" onclick="showPage('receber',this)"><span class="icon">💵</span> Contas a Receber</div>
-      <div class="nav-item" onclick="showPage('promissorias',this)"><span class="icon">📄</span> Promissórias</div>
-      <div class="nav-item" onclick="showPage('marketing',this)"><span class="icon">📣</span> Marketing</div>
+      <div class="nav-item" data-modulo="checklist" onclick="showPage('checklist',this)"><span class="icon">☑️</span> Checklist</div>
+      <div class="nav-item" data-modulo="documentacao" onclick="showPage('documentacao',this)"><span class="icon">📑</span> Documentação</div>
+      <div class="nav-item" data-modulo="preparacao" onclick="showPage('preparacao',this)"><span class="icon">🧽</span> Preparação</div>
+      <div class="nav-item" data-modulo="receber" onclick="showPage('receber',this)"><span class="icon">💵</span> Contas a Receber</div>
+      <div class="nav-item" data-modulo="promissorias" onclick="showPage('promissorias',this)"><span class="icon">📄</span> Promissórias</div>
+      <div class="nav-item" data-modulo="marketing" onclick="showPage('marketing',this)"><span class="icon">📣</span> Marketing</div>
       <div class="nav-section">Pessoas</div>
-      <div class="nav-item" onclick="showPage('clientes',this)"><span class="icon">📇</span> Clientes</div>
-      <div class="nav-item" onclick="showPage('socios',this)"><span class="icon">🤝</span> Sócios</div>
-      <div class="nav-item" onclick="showPage('acerto',this)"><span class="icon">💰</span> Acerto</div>
+      <div class="nav-item" data-modulo="clientes" onclick="showPage('clientes',this)"><span class="icon">📇</span> Clientes</div>
+      <div class="nav-item" data-modulo="socios" onclick="showPage('socios',this)"><span class="icon">🤝</span> Sócios</div>
+      <div class="nav-item" data-modulo="acerto" onclick="showPage('acerto',this)"><span class="icon">💰</span> Acerto</div>
+      <div class="nav-item" data-admin-only onclick="showPage('usuarios',this)"><span class="icon">🔐</span> Usuários e Permissões</div>
       <div class="nav-section" id="nav-user-section" style="margin-top:auto"></div>
-      <div class="nav-item" onclick="openModalNovoUsuario()"><span class="icon">➕</span> Cadastrar usuário</div>
+      <div class="nav-item" data-admin-only onclick="openModalNovoUsuario()"><span class="icon">➕</span> Cadastrar usuário</div>
       <div class="nav-item" onclick="regenerarMeuCodigo()"><span class="icon">🔑</span> Meu código de recuperação</div>
       <div class="nav-item" onclick="doLogout()"><span class="icon">🚪</span> Sair</div>
     </nav>
@@ -511,6 +514,32 @@ tr:hover td{background:var(--surface-2)}
         </div>
         <div id="checklist-content"></div>
       </div>
+    </div>
+
+    <div id="page-documentacao" class="page">
+      <div class="header">
+        <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Documentação</h2><div class="header-sub">Documentos necessários por veículo</div></div></div>
+        <button class="btn btn-secondary btn-sm" onclick="abrirGerenciarTipos('documento')">⚙️ Gerenciar Documentos</button>
+      </div>
+      <div class="content" id="documentacao-content"></div>
+    </div>
+
+    <div id="page-preparacao" class="page">
+      <div class="header">
+        <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Preparação</h2><div class="header-sub">Serviços de lavagem e higienização por veículo</div></div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="abrirGerenciarTipos('preparacao')">⚙️ Gerenciar Serviços</button>
+          <button class="btn btn-primary btn-sm" onclick="exportarPreparacaoPendentes()">📄 Exportar Pendências</button>
+        </div>
+      </div>
+      <div class="content" id="preparacao-content"></div>
+    </div>
+
+    <div id="page-usuarios" class="page">
+      <div class="header">
+        <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Usuários e Permissões</h2><div class="header-sub">Controle quem vê o quê no sistema</div></div></div>
+      </div>
+      <div class="content" id="usuarios-content"></div>
     </div>
 
     <div id="page-receber" class="page">
@@ -929,7 +958,7 @@ async function showPage(p,el){
   const bn=document.querySelector(`.bn-item[data-page="${p}"]`);
   if(bn) bn.classList.add('active');
   await loadAll();
-  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,marketing:renderMarketing,checklist:renderChecklistPage,receber:renderReceber,promissorias:renderPromissorias};
+  const map={dashboard:renderDash,veiculos:renderVeiculos,socios:renderSocios,clientes:renderClientes,acerto:renderAcerto,simulador:populateSim,relatorio:renderRelatorio,marketing:renderMarketing,checklist:renderChecklistPage,receber:renderReceber,promissorias:renderPromissorias,documentacao:renderDocumentacao,preparacao:renderPreparacao,usuarios:renderUsuarios};
   if(map[p]) map[p]();
 }
 function bottomNavGo(p,el){ showPage(p,null); }
@@ -2174,8 +2203,27 @@ async function checkAuth(){
     user=await GET('/auth/me');
     document.getElementById('nav-user-section').textContent=user.nome;
     hideLogin();
+    aplicarPermissoesNav();
     await loadAll(); renderDash();
   }catch(e){ showLogin(); }
+}
+function podeVer(modulo){ return user && (user.is_admin || (user.modulos||[]).includes(modulo)); }
+function aplicarPermissoesNav(){
+  if(!user) return;
+  document.querySelectorAll('[data-modulo]').forEach(el=>{
+    el.style.display = podeVer(el.dataset.modulo) ? '' : 'none';
+  });
+  document.querySelectorAll('[data-admin-only]').forEach(el=>{
+    el.style.display = user.is_admin ? '' : 'none';
+  });
+  document.querySelectorAll('[data-financeiro]').forEach(el=>{
+    el.style.display = (user.is_admin || user.ve_financeiro) ? '' : 'none';
+  });
+  // se o modulo padrao (dashboard) nao for permitido, manda pro primeiro que for
+  if(!podeVer('dashboard')){
+    const primeiroPermitido=document.querySelector('.nav-item[data-modulo]:not([style*="display: none"])');
+    if(primeiroPermitido) primeiroPermitido.click();
+  }
 }
 
 // ═══ MODAL GENÉRICO (usado pelo cadastro de usuário) ═══════════
@@ -2202,8 +2250,10 @@ async function renderMarketing(){
   const estagios=[
     {chave:'sem', titulo:'📹 Sem material', filtro:v=>!v.material_pronto},
     {chave:'gravado', titulo:'🎬 Gravado, não postado', filtro:v=>v.material_pronto&&!v.postado_instagram},
-    {chave:'postado', titulo:'📱 Postado, sem anúncio', filtro:v=>v.postado_instagram&&!v.anuncio_ativo},
-    {chave:'ativo', titulo:'📢 Anúncio rodando', filtro:v=>v.anuncio_ativo},
+    {chave:'postado', titulo:'📱 Postado, sem anúncio', filtro:v=>v.postado_instagram&&(v.status_anuncio==='nenhum'||!v.status_anuncio)},
+    {chave:'ativo', titulo:'📢 Anúncio rodando', filtro:v=>v.status_anuncio==='ativo'},
+    {chave:'ruim', titulo:'⚠️ Resultado ruim / precisa gravar novo', filtro:v=>v.status_anuncio==='resultado_ruim'||v.status_anuncio==='precisa_gravar_novo'},
+    {chave:'desativado', titulo:'⏸️ Anúncio desativado', filtro:v=>v.status_anuncio==='desativado'},
   ];
   el.innerHTML=estagios.map(e=>{
     const lista=ativos.filter(e.filtro);
@@ -2216,7 +2266,8 @@ async function renderMarketing(){
 }
 function marketingCard(v,hoje){
   const diasGravacao=v.data_gravacao?Math.floor((hoje-new Date(v.data_gravacao+'T12:00:00'))/86400000):null;
-  const parado=v.material_pronto&&diasGravacao!==null&&diasGravacao>=15&&!v.anuncio_ativo;
+  const parado=v.material_pronto&&diasGravacao!==null&&diasGravacao>=15&&v.status_anuncio!=='ativo';
+  const opcoesAnuncio=[['nenhum','— Sem anúncio ainda —'],['ativo','📢 Ativo'],['desativado','⏸️ Desativado'],['resultado_ruim','⚠️ Resultado ruim'],['precisa_gravar_novo','🎬 Precisa gravar novo']];
   return `<div class="socio-card">
     <div class="sc-name">${v.nome}</div>
     <div class="sc-info">${v.ano||'—'}${v.placa?' · '+v.placa:''}</div>
@@ -2225,7 +2276,12 @@ function marketingCard(v,hoje){
     <div style="display:flex;flex-direction:column;gap:6px;margin:10px 0;font-size:12px">
       <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim)"><input type="checkbox" ${v.material_pronto?'checked':''} onchange="marketingToggle(${v.id},'material_pronto',this.checked)"> Material gravado</label>
       <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim)"><input type="checkbox" ${v.postado_instagram?'checked':''} onchange="marketingToggle(${v.id},'postado_instagram',this.checked)"> Postado no Instagram</label>
-      <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim)"><input type="checkbox" ${v.anuncio_ativo?'checked':''} onchange="marketingToggle(${v.id},'anuncio_ativo',this.checked)"> Anúncio rodando</label>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="color:var(--text-faint);font-size:10px;text-transform:uppercase">Status do Anúncio</label>
+        <select style="background:var(--surface-inset);border:1px solid var(--border);border-radius:7px;padding:7px 8px;color:var(--text);font-size:12px" onchange="marketingSalvarCampo(${v.id},'status_anuncio',this.value)">
+          ${opcoesAnuncio.map(([val,txt])=>`<option value="${val}" ${((v.status_anuncio||'nenhum')===val)?'selected':''}>${txt}</option>`).join('')}
+        </select>
+      </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
       <button class="btn btn-secondary btn-sm" style="justify-content:center" onclick="gerarIA('roteiro',${v.id})">🤖 Gerar Roteiro</button>
@@ -2288,6 +2344,156 @@ function copiarTexto(btn,texto){
     const orig=btn.textContent; btn.textContent='✅ Copiado!';
     setTimeout(()=>btn.textContent=orig,1500);
   });
+}
+
+// ═══ DOCUMENTAÇÃO ════════════════════════════════════════════
+async function renderDocumentacao(){
+  const ativos=V.filter(v=>v.status!=='Vendido');
+  const el=document.getElementById('documentacao-content');
+  if(!ativos.length){ el.innerHTML='<div class="empty-state"><div class="icon">📑</div><p>Nenhum carro em estoque.</p></div>'; return; }
+  el.innerHTML='<p style="color:#888;text-align:center;padding:20px">Carregando...</p>';
+  const cards=await Promise.all(ativos.map(async v=>{
+    let docs=[];
+    try{ docs=await GET(`/veiculos/${v.id}/documentos`); }catch(e){}
+    const pendentes=docs.filter(d=>!d.concluido).length;
+    return `<div class="socio-card">
+      <div class="sc-name">${v.nome}</div>
+      <div class="sc-info">${v.ano||'—'}${v.placa?' · '+v.placa:''} ${pendentes>0?`<span style="color:var(--danger)">· ${pendentes} pendente(s)</span>`:'<span style="color:var(--success)">· completo</span>'}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px;font-size:12px">
+        ${docs.length?docs.map(d=>`
+          <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim)">
+            <input type="checkbox" ${d.concluido?'checked':''} onchange="toggleDocumento(${d.id},this.checked)"> ${d.tipo_nome}
+          </label>`).join(''):'<span style="color:#666">Nenhum tipo de documento cadastrado.</span>'}
+      </div>
+    </div>`;
+  }));
+  el.innerHTML=`<div class="socios-grid">${cards.join('')}</div>`;
+}
+async function toggleDocumento(id,concluido){
+  await PUT('/documentos/'+id,{concluido});
+  renderDocumentacao();
+}
+
+// ═══ PREPARAÇÃO ══════════════════════════════════════════════
+let TIPOS_PREP_CACHE=[];
+async function renderPreparacao(){
+  const ativos=V.filter(v=>v.status!=='Vendido');
+  const el=document.getElementById('preparacao-content');
+  if(!ativos.length){ el.innerHTML='<div class="empty-state"><div class="icon">🧽</div><p>Nenhum carro em estoque.</p></div>'; return; }
+  el.innerHTML='<p style="color:#888;text-align:center;padding:20px">Carregando...</p>';
+  try{ TIPOS_PREP_CACHE=await GET('/tipos-preparacao'); }catch(e){ TIPOS_PREP_CACHE=[]; }
+  const cards=await Promise.all(ativos.map(async v=>{
+    let itens=[];
+    try{ itens=await GET(`/veiculos/${v.id}/preparacao`); }catch(e){}
+    const disponiveis=TIPOS_PREP_CACHE.filter(t=>!itens.some(i=>i.tipo_preparacao_id===t.id));
+    return `<div class="socio-card">
+      <div class="sc-name">${v.nome}</div>
+      <div class="sc-info">${v.ano||'—'}${v.placa?' · '+v.placa:''}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin:10px 0;font-size:12px">
+        ${itens.length?itens.map(i=>`
+          <div style="display:flex;align-items:center;gap:8px;color:var(--text-dim)">
+            <input type="checkbox" ${i.concluido?'checked':''} onchange="togglePreparacao(${i.id},this.checked)" style="flex-shrink:0">
+            <span style="flex:1;min-width:0">${i.tipo_nome}</span>
+            <button class="del-custo" onclick="removerPreparacao(${i.id},${v.id})">×</button>
+          </div>`).join(''):'<span style="color:#666">Nenhum serviço selecionado ainda.</span>'}
+      </div>
+      ${disponiveis.length?`
+        <select id="prep-add-${v.id}" style="width:100%;background:var(--surface-inset);border:1px solid var(--border);border-radius:7px;padding:7px 8px;color:var(--text);font-size:12px;margin-bottom:6px">
+          ${disponiveis.map(t=>`<option value="${t.id}">${t.nome}</option>`).join('')}
+        </select>
+        <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center" onclick="adicionarPreparacao(${v.id})">+ Adicionar Serviço</button>
+      `:''}
+    </div>`;
+  }));
+  el.innerHTML=`<div class="socios-grid">${cards.join('')}</div>`;
+}
+async function adicionarPreparacao(vid){
+  const sel=document.getElementById('prep-add-'+vid);
+  if(!sel||!sel.value) return;
+  try{ await POST(`/veiculos/${vid}/preparacao`,{tipo_preparacao_id:parseInt(sel.value)}); renderPreparacao(); }
+  catch(e){ alert(e.message); }
+}
+async function togglePreparacao(id,concluido){
+  await PUT('/preparacao/'+id,{concluido});
+  renderPreparacao();
+}
+async function removerPreparacao(id,vid){
+  if(!confirm('Remover esse serviço desse carro?')) return;
+  await DEL('/preparacao/'+id);
+  renderPreparacao();
+}
+async function exportarPreparacaoPendentes(){
+  const itens=await GET('/preparacao-pendentes');
+  if(!itens.length){ alert('Nenhum serviço pendente em carro nenhum. Nada pra exportar.'); return; }
+  const porCarro={};
+  itens.forEach(i=>{
+    if(!porCarro[i.veiculo_id]) porCarro[i.veiculo_id]={nome:i.veiculo_nome,placa:i.veiculo_placa,tarefas:[]};
+    porCarro[i.veiculo_id].tarefas.push(i.tipo_nome);
+  });
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const w=window.open('','_blank');
+  w.document.write(`
+    <html><head><title>Preparação de Veículos - ${hoje}</title>
+    <style>
+      body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;color:#111;line-height:1.6;position:relative;padding-bottom:70px}
+      .marca-dagua{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;opacity:0.08;z-index:-1;pointer-events:none}
+      .logo-rodape{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:130px;opacity:0.85}
+      h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:10px}
+      .carro{margin-top:24px;page-break-inside:avoid}
+      .carro h2{font-size:16px;background:#eee;padding:8px 12px;border-radius:6px;margin-bottom:8px}
+      .tarefa{display:flex;align-items:center;gap:10px;padding:6px 4px;border-bottom:1px solid #ddd}
+      .box{width:16px;height:16px;border:2px solid #333;flex-shrink:0}
+      @media print{ .no-print{display:none} .marca-dagua{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
+    </style></head><body>
+    <img class="marca-dagua" src="/assets/logo-marca-dagua.png" alt="">
+    <div class="no-print" style="text-align:center;margin-bottom:20px">
+      <button onclick="window.print()" style="padding:10px 20px;font-size:14px">🖨️ Imprimir / Salvar PDF</button>
+    </div>
+    <h1>Preparação de Veículos Pendente — ${hoje}</h1>
+    ${Object.values(porCarro).map(c=>`
+      <div class="carro">
+        <h2>🚗 ${c.nome}${c.placa?' — '+c.placa:''}</h2>
+        ${c.tarefas.map(t=>`<div class="tarefa"><div class="box"></div><div>${t}</div></div>`).join('')}
+      </div>`).join('')}
+    <div style="text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #ddd"><img src="/assets/logo-marca-dagua.png" alt="" style="width:150px;opacity:0.9"></div>
+    </body></html>`);
+  w.document.close();
+}
+
+// ═══ GERENCIAR CATÁLOGOS (Documentos / Serviços de Preparação) ═
+async function abrirGerenciarTipos(tipo){
+  const rota=tipo==='documento'?'/tipos-documento':'/tipos-preparacao';
+  const itens=await GET(rota);
+  const html=`
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input type="text" id="novo-tipo-nome" placeholder="${tipo==='documento'?'Ex: Laudo Cautelar':'Ex: Cristalização de Vidros'}" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="adicionarTipo('${tipo}')">+</button>
+    </div>
+    <div id="lista-tipos">${itens.map(i=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a2a2a">
+        <span style="flex:1;min-width:0">${i.nome}</span>
+        <button class="del-custo" onclick="removerTipo('${tipo}',${i.id})">×</button>
+      </div>`).join('')||'<p style="color:#666;font-size:13px">Nenhum item cadastrado.</p>'}</div>`;
+  abrirModalGenerico(tipo==='documento'?'Gerenciar Tipos de Documento':'Gerenciar Serviços de Preparação',html);
+}
+async function adicionarTipo(tipo){
+  const input=document.getElementById('novo-tipo-nome');
+  const nome=input.value.trim();
+  if(!nome) return;
+  const rota=tipo==='documento'?'/tipos-documento':'/tipos-preparacao';
+  try{
+    await POST(rota,{nome});
+    input.value='';
+    abrirGerenciarTipos(tipo);
+    if(tipo==='documento') renderDocumentacao(); else renderPreparacao();
+  }catch(e){ alert(e.message); }
+}
+async function removerTipo(tipo,id){
+  if(!confirm('Remover esse item do catálogo? Isso não apaga o que já foi marcado nos carros, só some da lista pra novos carros.')) return;
+  const rota=tipo==='documento'?'/tipos-documento/':'/tipos-preparacao/';
+  await DEL(rota+id);
+  abrirGerenciarTipos(tipo);
+  if(tipo==='documento') renderDocumentacao(); else renderPreparacao();
 }
 
 // ═══ CHECKLIST (página) ══════════════════════════════════════
@@ -2378,12 +2584,33 @@ async function marcarParcelaPaga(id,origem){
 }
 
 // ═══ CADASTRAR USUÁRIO (só logado) ═════════════════════════════
+const MODULOS_DISPONIVEIS=[
+  ['dashboard','Dashboard'],['veiculos','Veículos'],['simulador','Simulador'],['relatorio','Relatório'],
+  ['checklist','Checklist'],['documentacao','Documentação'],['preparacao','Preparação'],
+  ['receber','Contas a Receber'],['promissorias','Promissórias'],['marketing','Marketing'],
+  ['clientes','Clientes'],['socios','Sócios'],['acerto','Acerto']
+];
+function checkboxesModulos(prefixo,selecionados){
+  selecionados=selecionados||[];
+  return MODULOS_DISPONIVEIS.map(([val,label])=>`
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);padding:4px 0">
+      <input type="checkbox" id="${prefixo}-mod-${val}" value="${val}" ${selecionados.includes(val)?'checked':''}> ${label}
+    </label>`).join('');
+}
+function lerModulosMarcados(prefixo){
+  return MODULOS_DISPONIVEIS.map(([val])=>val).filter(val=>document.getElementById(`${prefixo}-mod-${val}`)?.checked);
+}
 function openModalNovoUsuario(){
   const html=`
     <div style="display:flex;flex-direction:column;gap:10px">
       <input id="nu-nome" type="text" placeholder="Nome">
       <input id="nu-email" type="email" placeholder="Email">
       <input id="nu-senha" type="password" placeholder="Senha (mín. 6 caracteres)">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);padding:6px 0;border-top:1px solid #2a2a2a;margin-top:4px">
+        <input type="checkbox" id="nu-financeiro"> Pode ver valores financeiros (preço, custo, lucro)
+      </label>
+      <div style="font-size:10px;color:#888;text-transform:uppercase;font-weight:600;margin-top:4px">Módulos que essa pessoa acessa</div>
+      <div style="max-height:220px;overflow-y:auto;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px">${checkboxesModulos('nu',[])}</div>
       <div id="nu-erro" style="color:#ff6b6b;font-size:12px;min-height:14px"></div>
       <button class="btn btn-primary" onclick="salvarNovoUsuario()">Cadastrar</button>
     </div>`;
@@ -2396,11 +2623,58 @@ async function salvarNovoUsuario(){
   const erroEl=document.getElementById('nu-erro');
   erroEl.textContent='';
   if(!nome||!email||!senha){erroEl.textContent='Preencha todos os campos.';return;}
+  const ve_financeiro=document.getElementById('nu-financeiro').checked;
+  const modulos=lerModulosMarcados('nu');
   try{
-    const novo=await POST('/auth/registrar',{nome,email,senha});
+    const novo=await POST('/auth/registrar',{nome,email,senha,ve_financeiro,modulos});
     closeModal('modal-generico');
     alert(`Usuário cadastrado. Ele já pode fazer login com o email e senha informados.\n\nCÓDIGO DE RECUPERAÇÃO DELE (repasse pra essa pessoa, é a única forma de recuperar a senha):\n${novo.recoveryCode}`);
   }catch(e){erroEl.textContent=e.message;}
+}
+
+// ═══ USUÁRIOS E PERMISSÕES (admin) ═══════════════════════════
+async function renderUsuarios(){
+  const el=document.getElementById('usuarios-content');
+  let usuarios=[];
+  try{ usuarios=await GET('/usuarios'); }catch(e){ el.innerHTML=`<p style="color:#ff6b6b">${e.message}</p>`; return; }
+  el.innerHTML=`<div class="socios-grid">${usuarios.map(u=>`
+    <div class="socio-card">
+      <div class="sc-name">${u.nome}${u.is_admin?' <span class="tag-s">👑 Admin</span>':''}</div>
+      <div class="sc-info">${u.email}</div>
+      ${u.is_admin?
+        '<p style="color:#666;font-size:12px;margin-top:10px">Administrador vê tudo, não precisa configurar.</p>':
+        `<p style="font-size:12px;color:var(--text-dim);margin-top:10px">${u.ve_financeiro?'💰 Vê valores financeiros':'🚫 Não vê valores financeiros'}</p>
+         <p style="font-size:11px;color:#666">${u.modulos.length} módulo(s) liberado(s)</p>
+         <div class="sc-actions">
+           <button class="btn btn-secondary btn-sm" onclick="editarPermissoes(${u.id})">✏️ Editar Permissões</button>
+           <button class="btn btn-danger btn-sm" onclick="excluirUsuario(${u.id})">🗑</button>
+         </div>`}
+    </div>`).join('')}</div>`;
+}
+async function editarPermissoes(id){
+  const usuarios=await GET('/usuarios');
+  const u=usuarios.find(x=>x.id===id); if(!u) return;
+  const html=`
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);padding:6px 0;margin-bottom:10px">
+      <input type="checkbox" id="ep-financeiro" ${u.ve_financeiro?'checked':''}> Pode ver valores financeiros (preço, custo, lucro)
+    </label>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;font-weight:600;margin-bottom:6px">Módulos que essa pessoa acessa</div>
+    <div style="max-height:260px;overflow-y:auto;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px;margin-bottom:14px">${checkboxesModulos('ep',u.modulos)}</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="salvarPermissoes(${id})">Salvar</button>`;
+  abrirModalGenerico('Permissões — '+u.nome,html);
+}
+async function salvarPermissoes(id){
+  const ve_financeiro=document.getElementById('ep-financeiro').checked;
+  const modulos=lerModulosMarcados('ep');
+  try{
+    await PUT('/usuarios/'+id+'/permissoes',{ve_financeiro,modulos});
+    closeModal('modal-generico');
+    renderUsuarios();
+  }catch(e){ alert(e.message); }
+}
+async function excluirUsuario(id){
+  if(!confirm('Excluir esse usuário? Ele perde o acesso imediatamente.')) return;
+  try{ await DEL('/usuarios/'+id); renderUsuarios(); }catch(e){ alert(e.message); }
 }
 
 // ═══ INIT ═════════════════════════════════════════════════════
