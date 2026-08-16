@@ -2298,13 +2298,7 @@ async function marketingToggle(id,campo,valor){
 async function marketingSalvarCampo(id,campo,valor){
   const v=V.find(x=>x.id==id); if(!v) return;
   const body={...v, [campo]:valor};
-  try{
-    const resposta=await PUT('/veiculos/'+id,body);
-    if(campo==='status_anuncio'){
-      alert('DIAGNÓSTICO\n\nEnviei: '+valor+'\n\nServidor devolveu status_anuncio: '+resposta.status_anuncio+'\n\nCorpo enviado tinha valor_compra? '+(body.valor_compra!==undefined?'sim: '+body.valor_compra:'NÃO TINHA (undefined)'));
-    }
-    await loadAll(); renderMarketing();
-  }catch(e){alert('ERRO AO SALVAR: '+e.message);}
+  try{ await PUT('/veiculos/'+id,body); await loadAll(); renderMarketing(); }catch(e){alert(e.message);}
 }
 async function gerarIA(tipo,vid){
   const v=V.find(x=>x.id==vid); if(!v) return;
