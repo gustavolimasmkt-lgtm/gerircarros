@@ -67,7 +67,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 
 /* Main */
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
-.header{background:var(--surface);border-bottom:1px solid var(--border-soft);padding:16px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px}
+.header{background:var(--surface);border-bottom:1px solid var(--border-soft);padding:16px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px;flex-wrap:wrap}
 .header-left{display:flex;align-items:center;gap:10px}
 .menu-btn{display:none;background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer}
 .header h2{font-family:var(--font-display);font-size:17px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
@@ -226,7 +226,7 @@ tr:hover td{background:var(--surface-2)}
 .sc-stat{background:var(--surface-inset);border-radius:var(--radius-sm);padding:9px;text-align:center}
 .sc-sl{font-size:10px;color:var(--text-faint);margin-bottom:2px;text-transform:uppercase}
 .sc-sv{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--text)}
-.sc-actions{display:flex;gap:6px;margin-top:12px}
+.sc-actions{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
 .avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:var(--surface-2);color:var(--accent)}
 .info-chip{display:inline-flex;align-items:center;gap:3px;background:var(--surface-inset);border:1px solid var(--border);border-radius:20px;padding:3px 9px;font-size:11px;color:var(--text-dim)}
 
@@ -527,7 +527,7 @@ tr:hover td{background:var(--surface-2)}
     <div id="page-preparacao" class="page">
       <div class="header">
         <div class="header-left"><button class="menu-btn" onclick="openSB()">☰</button><div><h2>Preparação</h2><div class="header-sub">Serviços de lavagem e higienização por veículo</div></div></div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm" onclick="abrirGerenciarTipos('preparacao')">⚙️ Gerenciar Serviços</button>
           <button class="btn btn-primary btn-sm" onclick="exportarPreparacaoPendentes()">📄 Exportar Pendências</button>
         </div>
@@ -2298,7 +2298,7 @@ async function marketingToggle(id,campo,valor){
 async function marketingSalvarCampo(id,campo,valor){
   const v=V.find(x=>x.id==id); if(!v) return;
   const body={...v, [campo]:valor};
-  try{ await PUT('/veiculos/'+id,body); await loadAll(); }catch(e){alert(e.message);}
+  try{ await PUT('/veiculos/'+id,body); await loadAll(); renderMarketing(); }catch(e){alert(e.message);}
 }
 async function gerarIA(tipo,vid){
   const v=V.find(x=>x.id==vid); if(!v) return;
