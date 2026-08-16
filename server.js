@@ -461,8 +461,8 @@ app.post('/api/veiculos', requireModulo('veiculos'), (req, res) => {
     if (dup) return err(res, `Placa já cadastrada no veículo "${dup.nome}" (id ${dup.id}).`);
   }
   const r = db.prepare(`INSERT INTO veiculos
-    (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao,tipo_aquisicao,consignante_nome,consignante_contato,valor_minimo_dono,cor,km,chassi,preco_pretendido,cliente_id,forma_pagamento,entrada,parcelas,taxa_comissao,versao_motor,postado_instagram,anuncio_ativo)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    (nome,placa,ano,data_compra,valor_compra,tem_socio,socio_id,socio_pct,status,data_venda,valor_venda,troca,obs,data_entrada,material_pronto,data_gravacao,tipo_aquisicao,consignante_nome,consignante_contato,valor_minimo_dono,cor,km,chassi,preco_pretendido,cliente_id,forma_pagamento,entrada,parcelas,taxa_comissao,versao_motor,postado_instagram,anuncio_ativo,status_anuncio)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', consig ? 0 : b.valor_compra, b.tem_socio||'nao',
          b.socio_id||null, b.socio_pct ?? 50, b.status||'Disponivel', b.data_venda||'', b.valor_venda||0,
          b.troca||0, b.obs||'', b.data_entrada || new Date().toISOString().slice(0,10),
@@ -470,7 +470,7 @@ app.post('/api/veiculos', requireModulo('veiculos'), (req, res) => {
          b.consignante_nome||null, b.consignante_contato||null, consig ? b.valor_minimo_dono : null,
          b.cor||null, b.km||null, b.chassi||null, b.preco_pretendido||null,
          b.cliente_id||null, b.forma_pagamento||null, b.entrada||null, b.parcelas||null, b.taxa_comissao||null,
-         b.versao_motor||null, b.postado_instagram?1:0, b.anuncio_ativo?1:0);
+         b.versao_motor||null, b.postado_instagram?1:0, b.anuncio_ativo?1:0, b.status_anuncio||'nenhum');
   saveCustos(r.lastInsertRowid, b.custos);
   const novo = db.prepare('SELECT * FROM veiculos WHERE id=?').get(r.lastInsertRowid);
   saveParcelas(r.lastInsertRowid, novo);
@@ -501,7 +501,7 @@ app.put('/api/veiculos/:id', (req, res) => {
     status=?,data_venda=?,valor_venda=?,troca=?,obs=?,data_entrada=?,material_pronto=?,data_gravacao=?,
     tipo_aquisicao=?,consignante_nome=?,consignante_contato=?,valor_minimo_dono=?,
     cor=?,km=?,chassi=?,preco_pretendido=?,cliente_id=?,forma_pagamento=?,entrada=?,parcelas=?,taxa_comissao=?,
-    versao_motor=?,postado_instagram=?,anuncio_ativo=? WHERE id=?`)
+    versao_motor=?,postado_instagram=?,anuncio_ativo=?,status_anuncio=? WHERE id=?`)
     .run(b.nome, b.placa||'', b.ano||null, b.data_compra||'', consig ? 0 : b.valor_compra, b.tem_socio||'nao',
          b.socio_id||null, b.socio_pct ?? 50, b.status||'Disponivel', b.data_venda||'', b.valor_venda||0,
          b.troca||0, b.obs||'', b.data_entrada||null, b.material_pronto ? 1 : 0, b.data_gravacao||null,
@@ -509,7 +509,7 @@ app.put('/api/veiculos/:id', (req, res) => {
          consig ? b.valor_minimo_dono : null,
          b.cor||null, b.km||null, b.chassi||null, b.preco_pretendido||null,
          b.cliente_id||null, b.forma_pagamento||null, b.entrada||null, b.parcelas||null, b.taxa_comissao||null,
-         b.versao_motor||null, b.postado_instagram?1:0, b.anuncio_ativo?1:0,
+         b.versao_motor||null, b.postado_instagram?1:0, b.anuncio_ativo?1:0, b.status_anuncio||'nenhum',
          req.params.id);
   if (b.custos !== undefined) saveCustos(req.params.id, b.custos);
   const depois = db.prepare('SELECT * FROM veiculos WHERE id=?').get(req.params.id);
@@ -949,6 +949,8 @@ app.post('/api/ia/:tipo', requireModulo('marketing'), async (req, res) => {
     ok(res, resultado);
   } catch (e) { err(res, e.message, 502); }
 });
+
+app.get('/api/versao-deploy', (_, res) => res.json({ versao: 'FIX-STATUS-ANUNCIO-15AGO-2226' }));
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
