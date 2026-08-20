@@ -2247,6 +2247,21 @@ async function renderMarketing(){
   const el=document.getElementById('marketing-content');
   if(!ativos.length){ el.innerHTML='<div class="empty-state"><div class="icon">📣</div><p>Nenhum carro em estoque.</p></div>'; return; }
   const hoje=new Date();
+  const naFila=ativos.filter(v=>v.precisa_gravar);
+  const filaHtml=`
+    <details style="background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);margin-bottom:22px" ${naFila.length?'open':''}>
+      <summary style="padding:14px 16px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;list-style:none;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>🎥 Fila de Gravação <span style="color:#666;font-weight:400">(${naFila.length} selecionado${naFila.length===1?'':'s'})</span></span>
+        <button class="btn btn-primary btn-sm" onclick="event.preventDefault();gerarListaGravacao()">📄 Gerar Lista</button>
+      </summary>
+      <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:2px">
+        ${ativos.map(v=>`
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px solid var(--border-soft);font-size:13px;color:var(--text-dim)">
+            <input type="checkbox" ${v.precisa_gravar?'checked':''} onchange="marketingToggle(${v.id},'precisa_gravar',this.checked)" style="flex-shrink:0">
+            <span style="flex:1;min-width:0">${v.nome}${v.ano?' ('+v.ano+')':''}</span>
+          </label>`).join('')}
+      </div>
+    </details>`;
   const estagios=[
     {chave:'sem', titulo:'📹 Sem material', filtro:v=>!v.material_pronto},
     {chave:'gravado', titulo:'🎬 Gravado, não postado', filtro:v=>v.material_pronto&&!v.postado_instagram},
@@ -2255,7 +2270,7 @@ async function renderMarketing(){
     {chave:'ruim', titulo:'⚠️ Resultado ruim / precisa gravar novo', filtro:v=>v.status_anuncio==='resultado_ruim'||v.status_anuncio==='precisa_gravar_novo'},
     {chave:'desativado', titulo:'⏸️ Anúncio desativado', filtro:v=>v.status_anuncio==='desativado'},
   ];
-  el.innerHTML=estagios.map(e=>{
+  el.innerHTML=filaHtml+estagios.map(e=>{
     const lista=ativos.filter(e.filtro);
     if(!lista.length) return '';
     return `<div style="margin-bottom:22px">
@@ -2263,6 +2278,31 @@ async function renderMarketing(){
       <div class="socios-grid">${lista.map(v=>marketingCard(v,hoje)).join('')}</div>
     </div>`;
   }).join('');
+}
+function gerarListaGravacao(){
+  const naFila=V.filter(v=>v.status!=='Vendido'&&v.precisa_gravar);
+  if(!naFila.length){ alert('Nenhum carro selecionado na fila de gravação.'); return; }
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const w=window.open('','_blank');
+  w.document.write(`
+    <html><head><title>Lista de Gravação - ${hoje}</title>
+    <style>
+      body{font-family:Arial,sans-serif;max-width:600px;margin:30px auto;color:#111;line-height:1.6;position:relative;padding-bottom:70px}
+      .marca-dagua{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;opacity:0.08;z-index:-1;pointer-events:none}
+      h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:10px}
+      .item{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid #ddd;font-size:15px}
+      .box{width:18px;height:18px;border:2px solid #333;flex-shrink:0}
+      @media print{ .no-print{display:none} .marca-dagua{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
+    </style></head><body>
+    <img class="marca-dagua" src="/assets/logo-marca-dagua.png" alt="">
+    <div class="no-print" style="text-align:center;margin-bottom:20px">
+      <button onclick="window.print()" style="padding:10px 20px;font-size:14px">🖨️ Imprimir / Salvar PDF</button>
+    </div>
+    <h1>🎥 Carros pra Gravar — ${hoje}</h1>
+    ${naFila.map(v=>`<div class="item"><div class="box"></div><div>${v.nome}${v.ano?' ('+v.ano+')':''}${v.placa?' — '+v.placa:''}</div></div>`).join('')}
+    <div style="text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #ddd"><img src="/assets/logo-marca-dagua.png" alt="" style="width:150px;opacity:0.9"></div>
+    </body></html>`);
+  w.document.close();
 }
 function marketingCard(v,hoje){
   const diasGravacao=v.data_gravacao?Math.floor((hoje-new Date(v.data_gravacao+'T12:00:00'))/86400000):null;
