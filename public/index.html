@@ -159,7 +159,7 @@ tr:hover td{background:var(--surface-2)}
 
 /* Custos inline */
 .custos-section{grid-column:1/-1}
-.custo-row{display:grid;grid-template-columns:1fr 100px 130px 110px 32px;gap:8px;margin-bottom:8px;align-items:center}
+.custo-row{display:grid;grid-template-columns:1fr 110px 120px 32px;gap:8px;margin-bottom:8px;align-items:center}
 .custo-row input,.custo-row select{background:var(--surface-inset);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;color:var(--text);font-size:13px;outline:none;font-family:inherit}
 .custo-row input:focus,.custo-row select:focus{border-color:var(--accent)}
 .custo-row select option{background:var(--surface)}
@@ -168,7 +168,7 @@ tr:hover td{background:var(--surface-2)}
 .custo-total-bar{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--surface-inset);border-radius:var(--radius-sm);margin-top:6px;border:1px solid var(--border)}
 .custo-total-bar span{font-size:12px;color:var(--text-faint)}
 .custo-total-bar strong{color:var(--accent);font-size:14px}
-.custo-row-header{display:grid;grid-template-columns:1fr 100px 130px 110px 32px;gap:8px;margin-bottom:6px}
+.custo-row-header{display:grid;grid-template-columns:1fr 110px 120px 32px;gap:8px;margin-bottom:6px}
 .fipe-grid{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end}
 .socio-split-3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .del-custo{background:var(--danger-bg);border:none;border-radius:6px;color:var(--danger);width:28px;height:28px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
@@ -659,7 +659,6 @@ tr:hover td{background:var(--surface-2)}
           <div class="custo-row-header">
             <span style="font-size:10px;color:#555;font-weight:600;text-transform:uppercase">Descrição</span>
             <span style="font-size:10px;color:#555;font-weight:600;text-transform:uppercase">Valor (R$)</span>
-            <span style="font-size:10px;color:#555;font-weight:600;text-transform:uppercase">Data</span>
             <span style="font-size:10px;color:#555;font-weight:600;text-transform:uppercase">Pago por</span>
             <span></span>
           </div>
@@ -1170,7 +1169,6 @@ function renderCustos(){
     <div class="custo-row">
       <input type="text" value="${c.descricao}" placeholder="Ex: Polimento" oninput="mCustos[${i}].descricao=this.value;updateResumo()">
       <input type="text" inputmode="decimal" value="${c.valor||''}" placeholder="0" oninput="mCustos[${i}].valor=parseMoeda(this.value);updateResumo()">
-      <input type="date" autocomplete="off" value="${c.data||''}" oninput="mCustos[${i}].data=this.value">
       <select onchange="mCustos[${i}].pago_por=this.value">
         <option value="eu" ${c.pago_por==='eu'?'selected':''}>Eu</option>
         <option value="socio" ${c.pago_por==='socio'?'selected':''}>Sócio</option>
@@ -1180,7 +1178,7 @@ function renderCustos(){
     </div>`).join('');
   updateResumo();
 }
-function addCusto(){mCustos.push({descricao:'',valor:0,data:new Date().toISOString().slice(0,10),pago_por:'eu'});renderCustos();setTimeout(()=>{const x=document.querySelectorAll('#custos-list input[type=text]');if(x.length)x[x.length-1].focus();},50);}
+function addCusto(){mCustos.push({descricao:'',valor:0,pago_por:'eu'});renderCustos();setTimeout(()=>{const x=document.querySelectorAll('#custos-list input[type=text]');if(x.length)x[x.length-1].focus();},50);}
 function updateResumo(){
   const ct=mCustos.reduce((s,c)=>s+Number(c.valor||0),0);
   document.getElementById('custo-total').textContent=R(ct);
@@ -1243,7 +1241,7 @@ function openModalVeiculo(id){
     document.getElementById('v-troca').value=v.troca||'';
     document.getElementById('v-obs').value=v.obs||'';
     toggleSocio(); toggleAquisicao();
-    mCustos=custosDe(id).map(c=>({descricao:c.descricao,valor:c.valor,data:c.data||'',pago_por:c.pago_por}));
+    mCustos=custosDe(id).map(c=>({descricao:c.descricao,valor:c.valor,pago_por:c.pago_por}));
     document.getElementById('v-fipe-aviso').style.display='none';
     document.getElementById('v-fipe-section').style.display='';
     document.getElementById('v-fotos-aviso').style.display='none';
