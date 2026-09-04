@@ -2086,26 +2086,46 @@ async function confirmarImport(){
 function exportarExcel(){
   const wb=XLSX.utils.book_new();
 
-  // ── ABA 1: Veículos (resumo financeiro por carro) ──
-  const rows=[['Veículo','Ano','Placa','Tipo','Consignante','Valor Compra / Mínimo Dono','Custos','Total Investido','Valor Venda','Lucro Bruto','Meu Lucro','Margem %','Dias Estoque','Status','Sócio','% Sócio','Data Compra','Data Venda','Obs']];
+  // ── ABA 1: Veículos (tudo que existe no cadastro) ──
+  const cabecalho=['Veículo','Ano','Placa','Cor','Km','Chassi','Tipo Aquisição','Consignante','Contato Consignante',
+    'Valor Compra / Mínimo Dono','Custos','Total Investido','Preço Pretendido','Valor Venda','Lucro Bruto','Meu Lucro','Margem %',
+    'Status','Dias Estoque','Data Entrada','Data Compra','Data Venda',
+    'Sócio','% Sócio','Cliente (venda)','Telefone Cliente','Forma Pagamento','Entrada','Parcelas','Taxa/Comissão',
+    'Versão/Motor','FIPE','Material Pronto','Data Gravação','Postado Instagram','Status Anúncio','Fila Gravação','Obs'];
+  const rows=[cabecalho];
   V.forEach(v=>{
     const{ct,inv,luc,mg,consignado}=calc(v), ml=meuLucro(v), ts=v.tem_socio==='sim'&&v.socio_pct>0;
     const s=ts?socio(v.socio_id):null, d=dias(v);
-    rows.push([v.nome,v.ano||'',v.placa||'',consignado?'Consignação':'Compra',consignado?(v.consignante_nome||''):'',
-      consignado?v.valor_minimo_dono:v.valor_compra,ct,consignado?'':inv,
-      v.status==='Vendido'?v.valor_venda:'',v.status==='Vendido'?luc:'',v.status==='Vendido'?ml:'',
-      v.status==='Vendido'?parseFloat(mg.toFixed(1)):'',d!==null?d:'',
-      v.status,s?s.nome:'Próprio',ts?v.socio_pct:0,v.data_compra||'',v.data_venda||'',v.obs||'']);
+    rows.push([
+      v.nome, v.ano||'', v.placa||'', v.cor||'', v.km||'', v.chassi||'',
+      consignado?'Consignação':'Compra', consignado?(v.consignante_nome||''):'', consignado?(v.consignante_contato||''):'',
+      consignado?v.valor_minimo_dono:v.valor_compra, ct, consignado?'':inv, v.preco_pretendido||'',
+      v.status==='Vendido'?v.valor_venda:'', v.status==='Vendido'?luc:'', v.status==='Vendido'?ml:'',
+      v.status==='Vendido'?parseFloat(mg.toFixed(1)):'',
+      v.status, d!==null?d:'', v.data_entrada||'', v.data_compra||'', v.data_venda||'',
+      s?s.nome:'Próprio', ts?v.socio_pct:0, v.cliente_nome||'', v.cliente_telefone||'',
+      v.forma_pagamento||'', v.entrada||'', v.parcelas||'', v.taxa_comissao||'',
+      v.versao_motor||'', v.fipe_valor||'', v.material_pronto?'Sim':'Não', v.data_gravacao||'',
+      v.postado_instagram?'Sim':'Não', v.status_anuncio||'nenhum', v.precisa_gravar?'Sim':'Não', v.obs||''
+    ]);
   });
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[22,6,10,12,18,16,12,14,14,14,14,10,10,12,12,8,12,12,24].map(w=>({wch:w}));
+  ws['!cols']=cabecalho.map(()=>({wch:14}));
   XLSX.utils.book_append_sheet(wb,ws,'Veículos');
 
   // ── ABA 2: Custos por veículo ──
-  const cr=[['Veículo','Descrição','Valor','Pago por','Data']];
-  C.forEach(c=>{const v=V.find(x=>x.id==c.veiculo_id);cr.push([v?v.nome:'—',c.descricao,c.valor,c.pago_por,c.data||'']);});
-  const ws2=XLSX.utils.aoa_to_sheet(cr); ws2['!cols']=[24,24,12,12,12].map(w=>({wch:w}));
+  const cr=[['Veículo','Descrição','Valor','Pago por']];
+  C.forEach(c=>{const v=V.find(x=>x.id==c.veiculo_id);cr.push([v?v.nome:'—',c.descricao,c.valor,c.pago_por]);});
+  const ws2=XLSX.utils.aoa_to_sheet(cr); ws2['!cols']=[24,24,12,12].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws2,'Custos');
+
+  // ── ABA 3: Clientes ──
+  if(typeof CL!=='undefined'&&CL.length){
+    const clr=[['Nome','Tipo','Telefone','E-mail','CPF/CNPJ','Endereço','Obs']];
+    CL.forEach(c=>clr.push([c.nome,c.tipo||'',c.telefone||'',c.email||'',c.cpf_cnpj||'',c.endereco||'',c.obs||'']));
+    const ws3=XLSX.utils.aoa_to_sheet(clr); ws3['!cols']=[22,10,16,22,16,26,24].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws3,'Clientes');
+  }
 
   XLSX.writeFile(wb,`aclera_cars_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
