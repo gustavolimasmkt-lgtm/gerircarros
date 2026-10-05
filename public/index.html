@@ -2632,9 +2632,14 @@ async function renderReceber(){
         <td>${p.numero}</td>
         <td class="money" style="text-align:right">${R(p.valor)}</td>
         <td>${p.pago?`<span class="badge badge-disponivel">Recebida</span>`:atrasada?`<span class="badge" style="background:var(--danger-bg);color:var(--danger)">Atrasada</span>`:`<span class="badge badge-negociacao">Pendente</span>`}</td>
-        <td>${!p.pago?`<button class="btn btn-success btn-sm" onclick="marcarParcelaPaga(${p.id},'${p.origem}')">✅ Marcar paga</button>`:''}</td>
+        <td>${!p.pago?`<button class="btn btn-success btn-sm" onclick="marcarParcelaPaga(${p.id},'${p.origem}')">✅ Marcar paga</button> `:''}<button class="btn btn-sm" style="color:#ff6b6b" onclick="excluirParcela(${p.id},'${p.origem}')">🗑 Excluir</button></td>
       </tr>`;
     }).join('')}</tbody></table></div></div>`;
+}
+async function excluirParcela(id,origem){
+  if(!confirm('Excluir esta conta a receber? Não dá pra desfazer.')) return;
+  try{ await DEL(`/receber/${origem}/${id}`); }catch(e){ alert(e.message||'Erro ao excluir'); return; }
+  await loadAll(); renderReceber();
 }
 async function marcarParcelaPaga(id,origem){
   await PUT(`/receber/${origem}/${id}`,{pago:true});
