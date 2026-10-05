@@ -609,7 +609,7 @@ app.get('/api/custos', requireFinanceiro, (_, res) => ok(res, db.prepare('SELECT
 // ---------- PARCELAS (CONTAS A RECEBER) ----------
 app.get('/api/parcelas', requireModulo('receber'), (_, res) => {
   const daVenda = db.prepare(`
-    SELECT p.id, p.numero, p.valor, p.vencimento, p.pago, p.pago_em,
+    SELECT p.id, p.veiculo_id, p.numero, p.valor, p.vencimento, p.pago, p.pago_em,
            v.nome as veiculo_nome, v.placa as veiculo_placa,
            c.nome as cliente_nome, c.telefone as cliente_telefone,
            'venda' as origem
@@ -627,7 +627,9 @@ app.get('/api/parcelas', requireModulo('receber'), (_, res) => {
     LEFT JOIN veiculos v ON v.id = pr.veiculo_id
     LEFT JOIN clientes c ON c.id = pr.cliente_id
   `).all();
-  ok(res, [...daVenda, ...daPromissoria].sort((a,b)=>a.vencimento.localeCompare(b.vencimento)));
+  const comProm = new Set(db.prepare('SELECT veiculo_id FROM promissorias WHERE veiculo_id IS NOT NULL').all().map(r => r.veiculo_id));
+  const daVendaSemDup = daVenda.filter(p => !comProm.has(p.veiculo_id));
+  ok(res, [...daVendaSemDup, ...daPromissoria].sort((a,b)=>a.vencimento.localeCompare(b.vencimento)));
 });
 app.put('/api/receber/:origem/:id', requireModulo('receber'), (req, res) => {
   const tabela = req.params.origem === 'promissoria' ? 'promissoria_parcelas' : 'parcelas_venda';
