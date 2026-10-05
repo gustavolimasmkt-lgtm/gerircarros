@@ -216,6 +216,7 @@ for (const col of [
   "ALTER TABLE veiculos ADD COLUMN anuncio_ativo INTEGER DEFAULT 0",
   "ALTER TABLE veiculos ADD COLUMN status_anuncio TEXT DEFAULT 'nenhum'",
   "ALTER TABLE veiculos ADD COLUMN precisa_gravar INTEGER DEFAULT 0",
+  "ALTER TABLE veiculos ADD COLUMN parcelas_removidas INTEGER DEFAULT 0",
   "ALTER TABLE usuarios ADD COLUMN is_admin INTEGER DEFAULT 0",
   "ALTER TABLE usuarios ADD COLUMN ve_financeiro INTEGER DEFAULT 0",
 ]) {
@@ -252,6 +253,8 @@ function saveCustos(vid, arr) {
 }
 
 function saveParcelas(vid, veiculoRow) {
+  const flag = db.prepare('SELECT parcelas_removidas FROM veiculos WHERE id=?').get(vid);
+  if (flag && flag.parcelas_removidas) return; // usuario apagou parcela na mao: nao regenera
   db.prepare('DELETE FROM parcelas_venda WHERE veiculo_id=?').run(vid);
   if (veiculoRow.status !== 'Vendido') return;
   const parcelas = veiculoRow.parcelas || 0;
@@ -634,6 +637,24 @@ app.put('/api/receber/:origem/:id', requireModulo('receber'), (req, res) => {
   db.prepare(`UPDATE ${tabela} SET pago=?, pago_em=? WHERE id=?`)
     .run(pago, pago ? new Date().toISOString().slice(0,10) : null, req.params.id);
   ok(res, db.prepare(`SELECT * FROM ${tabela} WHERE id=?`).get(req.params.id));
+});
+app.delete('/api/receber/:origem/:id', requireModulo('receber'), (req, res) => {
+  try {
+    if (req.params.origem === 'promissoria') {
+      const item = db.prepare('SELECT * FROM promissoria_parcelas WHERE id=?').get(req.params.id);
+      if (!item) return err(res, 'Parcela nao encontrada', 404);
+      db.prepare('DELETE FROM promissoria_parcelas WHERE id=?').run(item.id);
+      const r = db.prepare('SELECT COUNT(*) as n, SUM(valor) as t FROM promissoria_parcelas WHERE promissoria_id=?').get(item.promissoria_id);
+      if (!r.n) db.prepare('DELETE FROM promissorias WHERE id=?').run(item.promissoria_id);
+      else db.prepare('UPDATE promissorias SET valor_total=? WHERE id=?').run(r.t || 0, item.promissoria_id);
+    } else {
+      const item = db.prepare('SELECT * FROM parcelas_venda WHERE id=?').get(req.params.id);
+      if (!item) return err(res, 'Parcela nao encontrada', 404);
+      db.prepare('DELETE FROM parcelas_venda WHERE id=?').run(item.id);
+      db.prepare('UPDATE veiculos SET parcelas_removidas=1 WHERE id=?').run(item.veiculo_id);
+    }
+    ok(res, { ok: true });
+  } catch (e) { err(res, 'Erro ao excluir: ' + e.message, 500); }
 });
 app.put('/api/parcelas/:id', requireModulo('receber'), (req, res) => {
   const item = db.prepare('SELECT * FROM parcelas_venda WHERE id=?').get(req.params.id);
